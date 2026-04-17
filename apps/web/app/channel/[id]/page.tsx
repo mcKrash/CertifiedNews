@@ -17,6 +17,7 @@ export default function ChannelPage() {
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [articleLikes, setArticleLikes] = useState<Record<string, { liked: boolean; count: number }>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
 
   // Check if user is following this channel (from localStorage)
   useEffect(() => {
@@ -135,6 +136,17 @@ export default function ChannelPage() {
     const likeData = getArticleLikeData(articleId);
     return likeData.count;
   };
+  const getCommentCount = (articleId: string) => {
+    return commentCounts[articleId] || 0;
+  };
+
+  const handleCommentAdded = (articleId: string) => {
+    setCommentCounts(prev => ({
+      ...prev,
+      [articleId]: (prev[articleId] || 0) + 1,
+    }));
+  };
+
   };
 
   const formatDate = (dateString: string) => {
@@ -332,7 +344,7 @@ export default function ChannelPage() {
                   </div>
                 </div>
                 {/* Comment Section */}
-                <CommentSection articleId={article.id} articleTitle={article.title} />
+                <CommentSection articleId={article.id} articleTitle={article.title} onCommentAdded={() => handleCommentAdded(article.id)} />
               </article>
             ))}
           </div>

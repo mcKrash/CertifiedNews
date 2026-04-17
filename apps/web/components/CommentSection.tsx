@@ -20,10 +20,12 @@ interface CommentSectionProps {
   articleId: string;
   articleTitle: string;
   onCommentAdded?: (comment: Comment) => void;
+  isExpanded?: boolean;
+  onToggleExpand?: (expanded: boolean) => void;
 }
 
-export default function CommentSection({ articleId, articleTitle, onCommentAdded }: CommentSectionProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function CommentSection({ articleId, articleTitle, onCommentAdded, isExpanded = false, onToggleExpand }: CommentSectionProps) {
+  const [isOpen, setIsOpen] = useState(isExpanded);
   const [comments, setComments] = useState<Comment[]>([
     {
       id: 'sample-1',
@@ -79,6 +81,11 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
     setUserBanStatus(banStatus);
   }, [currentUserId]);
 
+  // Sync external expand state
+  useEffect(() => {
+    setIsOpen(isExpanded);
+  }, [isExpanded]);
+
   const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value;
     setNewComment(text);
@@ -106,19 +113,15 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
       return;
     }
 
-    // Check if user is banned
     if (userBanStatus?.isBanned) {
       setViolationMessage(userBanStatus.reason);
       return;
     }
 
-    // Check for content violations
     const violation = checkContentViolation(newComment);
     
     if (violation.isViolating) {
       setViolationMessage(violation.reason || 'Your comment violates our Community Guidelines.');
-      
-      // Record violation
       const enforcement = recordViolation(currentUserId, violation.severity);
       
       if (enforcement.shouldBan) {
@@ -130,11 +133,8 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
     }
 
     setIsSubmitting(true);
-
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Create new comment
     const comment: Comment = {
       id: 'comment-' + Date.now(),
       userId: currentUserId,
@@ -171,19 +171,15 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
       return;
     }
 
-    // Check if user is banned
     if (userBanStatus?.isBanned) {
       setViolationMessage(userBanStatus.reason);
       return;
     }
 
-    // Check for content violations
     const violation = checkContentViolation(replyContent);
     
     if (violation.isViolating) {
       setViolationMessage(violation.reason || 'Your reply violates our Community Guidelines.');
-      
-      // Record violation
       const enforcement = recordViolation(currentUserId, violation.severity);
       
       if (enforcement.shouldBan) {
@@ -195,11 +191,8 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
     }
 
     setIsSubmitting(true);
-
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Create new reply
     const reply: Comment = {
       id: 'reply-' + Date.now(),
       userId: currentUserId,
@@ -212,7 +205,6 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
       isLiked: false,
     };
 
-    // Add reply to parent comment
     setComments(comments.map(comment => {
       if (comment.id === parentCommentId) {
         return {
@@ -256,20 +248,30 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const handleToggle = () => {
+    const newState = !isOpen;
+    setIsOpen(newState);
+    if (onToggleExpand) {
+      onToggleExpand(newState);
+    }
+  };
+
   const renderCommentThread = (comment: Comment, isReply: boolean = false) => (
-    <div key={comment.id} className={`flex gap-3 ${isReply ? 'ml-8 lg:ml-12' : ''}`}>
+    <div key={comment.id} className={`flex gap-3 ${isReply ? 'ml-8 lg:ml-12 border-l-2 pl-4' : ''}`} style={isReply ? { borderColor: '#E0E6ED' } : {}}>
       <div className="w-8 lg:w-10 h-8 lg:h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm lg:text-lg flex-shrink-0">
         {comment.userAvatar}
       </div>
       <div className="flex-1 min-w-0">
         <div className="bg-gray-50 rounded-lg p-3 lg:p-4" style={{ borderColor: '#E0E6ED' }}>
           <div className="flex items-center justify-between mb-2 flex-col sm:flex-row gap-1">
-            <p className="font-bold text-sm" style={{ color: '#2C3E50' }}>
-              {comment.userName}
-            </p>
-            <p className="text-xs" style={{ color: '#95A5A6' }}>
-              {formatDate(comment.timestamp)}
-            </p>
+            <div>
+              <p className="font-bold text-sm" style={{ color: '#2C3E50' }}>
+                {comment.userName}
+              </p>
+              <p className="text-xs" style={{ color: '#95A5A6' }}>
+                {formatDate(comment.timestamp)}
+              </p>
+            </div>
           </div>
           <p className="text-sm leading-relaxed" style={{ color: '#2C3E50' }}>
             {comment.content}
@@ -280,7 +282,7 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
             onClick={() => handleLikeComment(comment.id)}
             className="hover:text-[#00B4A0] transition-colors flex items-center gap-1"
           >
-            <span>{comment.isLiked ? '❤️' : '🤍'}</span>
+            <span>{comment.isLiked ? '❤️' : '👍'}</span>
             {comment.likes}
           </button>
           <button
@@ -330,7 +332,7 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
 
         {/* Nested Replies */}
         {comment.replies && comment.replies.length > 0 && (
-          <div className="mt-4 space-y-4 border-l-2 pl-4" style={{ borderColor: '#E0E6ED' }}>
+          <div className="mt-4 space-y-4">
             {comment.replies.map(reply => renderCommentThread(reply, true))}
           </div>
         )}
@@ -340,11 +342,11 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
 
   return (
     <>
-      {/* Comment Button - Visible by default */}
+      {/* Premium Comment Button - Visible by default */}
       {!isOpen && (
         <button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 mt-4 px-4 py-2 rounded-lg font-bold text-white transition-all hover:shadow-lg"
+          onClick={handleToggle}
+          className="px-4 py-2 rounded-full font-bold text-white transition-all hover:shadow-lg flex items-center gap-2 text-sm"
           style={{ backgroundColor: '#00B4A0' }}
         >
           <span>💬</span>
@@ -358,8 +360,12 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
         <div className="border-t pt-8 mt-8" style={{ borderColor: '#E0E6ED' }}>
           {/* Comments Header */}
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold" style={{ color: '#2C3E50' }}>
-              Comments ({comments.length})
+            <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: '#2C3E50' }}>
+              <span>💬</span>
+              <span>Comments</span>
+              <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm font-bold">
+                {comments.length}
+              </span>
             </h3>
             <div className="flex items-center gap-3">
               <button
@@ -370,7 +376,7 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
                 Guidelines
               </button>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={handleToggle}
                 className="text-2xl font-bold"
                 style={{ color: '#95A5A6' }}
               >
@@ -408,16 +414,27 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
                     ref={textareaRef}
                     value={newComment}
                     onChange={handleCommentChange}
-                    placeholder="Share your thoughts... (Be respectful)"
-                    className="w-full px-4 py-3 bg-gray-50 border rounded-lg text-sm focus:outline-none focus:ring-2 resize-none"
+                    placeholder="Share your mind..."
+                    className="w-full px-4 py-3 bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 resize-none"
                     style={{ borderColor: '#E0E6ED', '--tw-ring-color': '#00B4A0' } as any}
                     rows={3}
                     disabled={isSubmitting}
                     maxLength={2000}
                   />
                   <div className="flex items-center justify-between mt-3">
-                    <div className="text-xs" style={{ color: '#95A5A6' }}>
-                      {characterCount} / 2000 characters
+                    <div className="flex items-center gap-2">
+                      <button type="button" className="text-lg hover:text-[#00B4A0]" title="Link">
+                        🔗
+                      </button>
+                      <button type="button" className="text-lg hover:text-[#00B4A0]" title="Image">
+                        🖼️
+                      </button>
+                      <button type="button" className="text-lg hover:text-[#00B4A0]" title="Emoji">
+                        😊
+                      </button>
+                      <button type="button" className="text-lg hover:text-[#00B4A0]" title="More">
+                        ⋯
+                      </button>
                     </div>
                     <button
                       type="submit"
@@ -425,7 +442,7 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
                       className="px-6 py-2 rounded-lg font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{ backgroundColor: '#00B4A0' }}
                     >
-                      {isSubmitting ? 'Posting...' : 'Post Comment'}
+                      {isSubmitting ? 'Posting...' : 'Post'}
                     </button>
                   </div>
                 </div>
@@ -442,6 +459,14 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
               )}
             </form>
           )}
+
+          {/* Sort Options */}
+          <div className="flex items-center justify-between mb-6">
+            <div></div>
+            <button className="text-xs font-bold flex items-center gap-1" style={{ color: '#00B4A0' }}>
+              ↕️ Most Recent
+            </button>
+          </div>
 
           {/* Comments List */}
           <div className="space-y-6">

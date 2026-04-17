@@ -18,6 +18,7 @@ export default function HomePage() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [articleLikes, setArticleLikes] = useState<Record<string, { liked: boolean; count: number }>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const searchRef = useRef<HTMLDivElement>(null);
   
   // Post box state
@@ -226,6 +227,17 @@ export default function HomePage() {
     const likeData = getArticleLikeData(articleId);
     return likeData.count;
   };
+  const getCommentCount = (articleId: string) => {
+    return commentCounts[articleId] || 0;
+  };
+
+  const handleCommentAdded = (articleId: string) => {
+    setCommentCounts(prev => ({
+      ...prev,
+      [articleId]: (prev[articleId] || 0) + 1,
+    }));
+  };
+
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -642,27 +654,27 @@ export default function HomePage() {
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => handleArticleLike(article.id)}
-                      className="flex items-center gap-1.5 group"
+                      className="flex items-center gap-1.5 group hover:scale-110 transition-transform"
                     >
-                      <span className="text-sm group-hover:scale-120 transition-transform" style={{ color: getArticleLikeData(article.id).liked ? '#00B4A0' : 'inherit' }}>
+                      <span className="text-lg" style={{ color: getArticleLikeData(article.id).liked ? '#00B4A0' : '#95A5A6' }}>
                         {getArticleLikeData(article.id).liked ? '❤️' : '👍'}
                       </span>
-                      <span className="text-[10px] font-bold" style={{ color: getArticleLikeData(article.id).liked ? '#00B4A0' : '#95A5A6' }}>
+                      <span className="text-xs font-bold" style={{ color: getArticleLikeData(article.id).liked ? '#00B4A0' : '#95A5A6' }}>
                         {getTotalEngagement(article.id)}
                       </span>
                     </button>
-                    <button className="flex items-center gap-1.5 group">
-                      <span className="text-sm group-hover:scale-120 transition-transform">💬</span>
-                      <span className="text-[10px] font-bold text-gray-500">{Math.floor(Math.random() * 50)}</span>
+                    <button className="flex items-center gap-1.5 group hover:scale-110 transition-transform">
+                      <span className="text-lg">💭</span>
+                      <span className="text-xs font-bold" style={{ color: '#95A5A6' }}>{getCommentCount(article.id)}</span>
                     </button>
-                    <button className="flex items-center gap-1.5 group">
-                      <span className="text-sm group-hover:scale-120 transition-transform">🔗</span>
+                    <button className="flex items-center gap-1.5 group hover:scale-110 transition-transform">
+                      <span className="text-lg">🔗</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Comment Section */}
-                <CommentSection articleId={article.id} articleTitle={article.title} />
+                <CommentSection articleId={article.id} articleTitle={article.title} onCommentAdded={() => handleCommentAdded(article.id)} />
               </article>
             ))}
           </div>
