@@ -13,6 +13,7 @@ interface Comment {
   likes: number;
   replies: Comment[];
   isLiked: boolean;
+  isReplyOpen?: boolean;
 }
 
 interface CommentSectionProps {
@@ -22,15 +23,55 @@ interface CommentSectionProps {
 }
 
 export default function CommentSection({ articleId, articleTitle, onCommentAdded }: CommentSectionProps) {
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([
+    {
+      id: 'sample-1',
+      userId: 'user-sample-1',
+      userName: 'Alex Johnson',
+      userAvatar: '👨',
+      content: 'Great article! This really helped me understand the topic better.',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      likes: 12,
+      replies: [
+        {
+          id: 'reply-1',
+          userId: 'user-sample-2',
+          userName: 'Sarah Smith',
+          userAvatar: '👩',
+          content: 'I agree! The analysis was thorough and well-researched.',
+          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
+          likes: 5,
+          replies: [],
+          isLiked: false,
+        },
+      ],
+      isLiked: false,
+    },
+    {
+      id: 'sample-2',
+      userId: 'user-sample-3',
+      userName: 'Mike Chen',
+      userAvatar: '👨',
+      content: 'Would love to see more articles on this topic. Very informative!',
+      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      likes: 8,
+      replies: [],
+      isLiked: false,
+    },
+  ]);
   const [newComment, setNewComment] = useState('');
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState('');
   const [currentUserId, setCurrentUserId] = useState('user-' + Math.random().toString(36).substr(2, 9));
   const [showGuidelinesModal, setShowGuidelinesModal] = useState(false);
   const [violationMessage, setViolationMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userBanStatus, setUserBanStatus] = useState<any>(null);
   const [characterCount, setCharacterCount] = useState(0);
+  const [replyCharacterCount, setReplyCharacterCount] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Check if user is banned on component mount
   useEffect(() => {
@@ -42,6 +83,13 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
     const text = e.target.value;
     setNewComment(text);
     setCharacterCount(text.length);
+    setViolationMessage('');
+  };
+
+  const handleReplyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setReplyContent(text);
+    setReplyCharacterCount(text.length);
     setViolationMessage('');
   };
 
@@ -110,6 +158,78 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
     }
   };
 
+  const handleSubmitReply = async (e: React.FormEvent, parentCommentId: string) => {
+    e.preventDefault();
+
+    if (!replyContent.trim()) {
+      setViolationMessage('Please write a reply before submitting.');
+      return;
+    }
+
+    if (replyContent.length > 2000) {
+      setViolationMessage('Reply exceeds maximum length of 2000 characters.');
+      return;
+    }
+
+    // Check if user is banned
+    if (userBanStatus?.isBanned) {
+      setViolationMessage(userBanStatus.reason);
+      return;
+    }
+
+    // Check for content violations
+    const violation = checkContentViolation(replyContent);
+    
+    if (violation.isViolating) {
+      setViolationMessage(violation.reason || 'Your reply violates our Community Guidelines.');
+      
+      // Record violation
+      const enforcement = recordViolation(currentUserId, violation.severity);
+      
+      if (enforcement.shouldBan) {
+        const banStatus = isUserBanned(currentUserId);
+        setUserBanStatus(banStatus);
+      }
+
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Create new reply
+    const reply: Comment = {
+      id: 'reply-' + Date.now(),
+      userId: currentUserId,
+      userName: 'You',
+      userAvatar: '👤',
+      content: replyContent,
+      timestamp: new Date(),
+      likes: 0,
+      replies: [],
+      isLiked: false,
+    };
+
+    // Add reply to parent comment
+    setComments(comments.map(comment => {
+      if (comment.id === parentCommentId) {
+        return {
+          ...comment,
+          replies: [reply, ...comment.replies],
+        };
+      }
+      return comment;
+    }));
+
+    setReplyContent('');
+    setReplyCharacterCount(0);
+    setReplyingTo(null);
+    setViolationMessage('');
+    setIsSubmitting(false);
+  };
+
   const handleLikeComment = (commentId: string) => {
     setComments(comments.map(comment => {
       if (comment.id === commentId) {
@@ -136,131 +256,207 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  return (
-    <div className="border-t pt-8 mt-8" style={{ borderColor: '#E0E6ED' }}>
-      {/* Comments Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold" style={{ color: '#2C3E50' }}>
-          Comments ({comments.length})
-        </h3>
-        <button
-          onClick={() => setShowGuidelinesModal(true)}
-          className="text-xs font-bold hover:underline"
-          style={{ color: '#00B4A0' }}
-        >
-          Community Guidelines
-        </button>
+  const renderCommentThread = (comment: Comment, isReply: boolean = false) => (
+    <div key={comment.id} className={`flex gap-3 ${isReply ? 'ml-8 lg:ml-12' : ''}`}>
+      <div className="w-8 lg:w-10 h-8 lg:h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm lg:text-lg flex-shrink-0">
+        {comment.userAvatar}
       </div>
-
-      {/* Ban Notice */}
-      {userBanStatus?.isBanned && (
-        <div
-          className="p-4 rounded-lg mb-6 border-l-4"
-          style={{ backgroundColor: '#FFF5F5', borderColor: '#E74C3C' }}
-        >
-          <p className="text-sm font-bold" style={{ color: '#E74C3C' }}>
-            ⛔ {userBanStatus.reason}
+      <div className="flex-1 min-w-0">
+        <div className="bg-gray-50 rounded-lg p-3 lg:p-4" style={{ borderColor: '#E0E6ED' }}>
+          <div className="flex items-center justify-between mb-2 flex-col sm:flex-row gap-1">
+            <p className="font-bold text-sm" style={{ color: '#2C3E50' }}>
+              {comment.userName}
+            </p>
+            <p className="text-xs" style={{ color: '#95A5A6' }}>
+              {formatDate(comment.timestamp)}
+            </p>
+          </div>
+          <p className="text-sm leading-relaxed" style={{ color: '#2C3E50' }}>
+            {comment.content}
           </p>
-          {userBanStatus.unbanDate && (
-            <p className="text-xs mt-2" style={{ color: '#C0392B' }}>
-              You can comment again on {userBanStatus.unbanDate.toLocaleDateString()}
-            </p>
-          )}
         </div>
-      )}
+        <div className="flex items-center gap-4 mt-2 text-xs font-bold" style={{ color: '#95A5A6' }}>
+          <button
+            onClick={() => handleLikeComment(comment.id)}
+            className="hover:text-[#00B4A0] transition-colors flex items-center gap-1"
+          >
+            <span>{comment.isLiked ? '❤️' : '🤍'}</span>
+            {comment.likes}
+          </button>
+          <button
+            onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+            className="hover:text-[#00B4A0] transition-colors"
+          >
+            {replyingTo === comment.id ? '✕ Cancel' : '💬 Reply'}
+          </button>
+        </div>
 
-      {/* Comment Input Box */}
-      {!userBanStatus?.isBanned && (
-        <form onSubmit={handleSubmitComment} className="mb-8">
-          <div className="flex gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg flex-shrink-0">
-              👤
-            </div>
-            <div className="flex-1">
-              <textarea
-                ref={textareaRef}
-                value={newComment}
-                onChange={handleCommentChange}
-                placeholder="Share your thoughts on this article... (Be respectful and follow our Community Guidelines)"
-                className="w-full px-4 py-3 bg-gray-50 border rounded-lg text-sm focus:outline-none focus:ring-2 resize-none"
-                style={{ borderColor: '#E0E6ED', '--tw-ring-color': '#00B4A0' } as any}
-                rows={3}
-                disabled={isSubmitting}
-                maxLength={2000}
-              />
-              <div className="flex items-center justify-between mt-3">
-                <div className="text-xs" style={{ color: '#95A5A6' }}>
-                  {characterCount} / 2000 characters
-                </div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !newComment.trim()}
-                  className="px-6 py-2 rounded-lg font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: '#00B4A0' }}
-                >
-                  {isSubmitting ? 'Posting...' : 'Post Comment'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Violation Message */}
-          {violationMessage && (
-            <div
-              className="p-3 rounded-lg text-sm border-l-4 mb-4"
-              style={{ backgroundColor: '#FFF3CD', borderColor: '#FFC107', color: '#856404' }}
-            >
-              <p className="font-bold">⚠️ {violationMessage}</p>
-            </div>
-          )}
-        </form>
-      )}
-
-      {/* Comments List */}
-      <div className="space-y-6">
-        {comments.length === 0 ? (
-          <div className="text-center py-8">
-            <p style={{ color: '#7F8C8D' }}>
-              No comments yet. Be the first to share your thoughts!
-            </p>
-          </div>
-        ) : (
-          comments.map(comment => (
-            <div key={comment.id} className="flex gap-3">
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg flex-shrink-0">
-                {comment.userAvatar}
+        {/* Reply Input */}
+        {replyingTo === comment.id && (
+          <form onSubmit={(e) => handleSubmitReply(e, comment.id)} className="mt-4">
+            <div className="flex gap-2">
+              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm flex-shrink-0">
+                👤
               </div>
               <div className="flex-1">
-                <div className="bg-gray-50 rounded-lg p-4" style={{ borderColor: '#E0E6ED' }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-bold text-sm" style={{ color: '#2C3E50' }}>
-                      {comment.userName}
-                    </p>
-                    <p className="text-xs" style={{ color: '#95A5A6' }}>
-                      {formatDate(comment.timestamp)}
-                    </p>
+                <textarea
+                  ref={replyTextareaRef}
+                  value={replyContent}
+                  onChange={handleReplyChange}
+                  placeholder="Write a reply..."
+                  className="w-full px-3 py-2 bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 resize-none"
+                  style={{ borderColor: '#E0E6ED', '--tw-ring-color': '#00B4A0' } as any}
+                  rows={2}
+                  disabled={isSubmitting}
+                  maxLength={2000}
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <div className="text-xs" style={{ color: '#95A5A6' }}>
+                    {replyCharacterCount} / 2000
                   </div>
-                  <p className="text-sm leading-relaxed" style={{ color: '#2C3E50' }}>
-                    {comment.content}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 mt-2 text-xs font-bold" style={{ color: '#95A5A6' }}>
                   <button
-                    onClick={() => handleLikeComment(comment.id)}
-                    className="hover:text-[#00B4A0] transition-colors flex items-center gap-1"
+                    type="submit"
+                    disabled={isSubmitting || !replyContent.trim()}
+                    className="px-4 py-1.5 rounded-lg font-bold text-white text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: '#00B4A0' }}
                   >
-                    <span>{comment.isLiked ? '❤️' : '🤍'}</span>
-                    {comment.likes}
-                  </button>
-                  <button className="hover:text-[#00B4A0] transition-colors">
-                    💬 Reply
+                    {isSubmitting ? 'Posting...' : 'Reply'}
                   </button>
                 </div>
               </div>
             </div>
-          ))
+          </form>
+        )}
+
+        {/* Nested Replies */}
+        {comment.replies && comment.replies.length > 0 && (
+          <div className="mt-4 space-y-4 border-l-2 pl-4" style={{ borderColor: '#E0E6ED' }}>
+            {comment.replies.map(reply => renderCommentThread(reply, true))}
+          </div>
         )}
       </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Comment Button - Visible by default */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-2 mt-4 px-4 py-2 rounded-lg font-bold text-white transition-all hover:shadow-lg"
+          style={{ backgroundColor: '#00B4A0' }}
+        >
+          <span>💬</span>
+          <span>Comments ({comments.length})</span>
+          <span>▼</span>
+        </button>
+      )}
+
+      {/* Comment Section - Hidden by default, expands on click */}
+      {isOpen && (
+        <div className="border-t pt-8 mt-8" style={{ borderColor: '#E0E6ED' }}>
+          {/* Comments Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold" style={{ color: '#2C3E50' }}>
+              Comments ({comments.length})
+            </h3>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowGuidelinesModal(true)}
+                className="text-xs font-bold hover:underline"
+                style={{ color: '#00B4A0' }}
+              >
+                Guidelines
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-2xl font-bold"
+                style={{ color: '#95A5A6' }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Ban Notice */}
+          {userBanStatus?.isBanned && (
+            <div
+              className="p-4 rounded-lg mb-6 border-l-4"
+              style={{ backgroundColor: '#FFF5F5', borderColor: '#E74C3C' }}
+            >
+              <p className="text-sm font-bold" style={{ color: '#E74C3C' }}>
+                ⛔ {userBanStatus.reason}
+              </p>
+              {userBanStatus.unbanDate && (
+                <p className="text-xs mt-2" style={{ color: '#C0392B' }}>
+                  You can comment again on {userBanStatus.unbanDate.toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Comment Input Box */}
+          {!userBanStatus?.isBanned && (
+            <form onSubmit={handleSubmitComment} className="mb-8">
+              <div className="flex gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg flex-shrink-0">
+                  👤
+                </div>
+                <div className="flex-1">
+                  <textarea
+                    ref={textareaRef}
+                    value={newComment}
+                    onChange={handleCommentChange}
+                    placeholder="Share your thoughts... (Be respectful)"
+                    className="w-full px-4 py-3 bg-gray-50 border rounded-lg text-sm focus:outline-none focus:ring-2 resize-none"
+                    style={{ borderColor: '#E0E6ED', '--tw-ring-color': '#00B4A0' } as any}
+                    rows={3}
+                    disabled={isSubmitting}
+                    maxLength={2000}
+                  />
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="text-xs" style={{ color: '#95A5A6' }}>
+                      {characterCount} / 2000 characters
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || !newComment.trim()}
+                      className="px-6 py-2 rounded-lg font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ backgroundColor: '#00B4A0' }}
+                    >
+                      {isSubmitting ? 'Posting...' : 'Post Comment'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Violation Message */}
+              {violationMessage && (
+                <div
+                  className="p-3 rounded-lg text-sm border-l-4 mb-4"
+                  style={{ backgroundColor: '#FFF3CD', borderColor: '#FFC107', color: '#856404' }}
+                >
+                  <p className="font-bold">⚠️ {violationMessage}</p>
+                </div>
+              )}
+            </form>
+          )}
+
+          {/* Comments List */}
+          <div className="space-y-6">
+            {comments.length === 0 ? (
+              <div className="text-center py-8">
+                <p style={{ color: '#7F8C8D' }}>
+                  No comments yet. Be the first to share your thoughts!
+                </p>
+              </div>
+            ) : (
+              comments.map(comment => renderCommentThread(comment))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Guidelines Modal */}
       {showGuidelinesModal && (
@@ -295,6 +491,6 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
