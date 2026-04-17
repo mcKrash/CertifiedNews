@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import { channels } from '@/lib/channels';
 import CommentSection from '@/components/CommentSection';
@@ -185,9 +186,9 @@ export default function ChannelPage() {
       {/* Header */}
       <header className="border-b sticky top-0 z-50" style={{ borderColor: '#E0E6ED', backgroundColor: '#FFFFFF' }}>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <Link href="/home" className="text-xl lg:text-2xl font-bold hover:opacity-80 transition-opacity flex-shrink-0">
-            <span style={{ color: '#00B4A0' }}>CERTIFIED</span>
-            <span style={{ color: '#2C3E50' }}> NEWS</span>
+          <Link href="/home" className="flex items-center space-x-3 hover:opacity-80 transition-opacity flex-shrink-0">
+            <Image src="/logo.png" alt="WCNA Logo" width={48} height={48} className="rounded" />
+            <span className="text-2xl font-bold tracking-tight" style={{ color: '#2C3E50' }}>WCNA</span>
           </Link>
           <button
             onClick={() => {

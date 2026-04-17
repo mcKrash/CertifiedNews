@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
@@ -23,7 +24,7 @@ export default function ProfilePage() {
           email: 'admin@certifiednews.local',
           role: 'admin',
           trustScore: 1000,
-          bio: 'Senior Editor and Fact-Checker at Certified News. Dedicated to ensuring accuracy and integrity in journalism.',
+          bio: 'Senior Editor and Fact-Checker at WCNA. Dedicated to ensuring accuracy and integrity in journalism.',
           interests: ['Investigative Journalism', 'Climate Change', 'Technology', 'Politics'],
           joinedAt: '2025-01-15T10:00:00.000Z',
           avatarUrl: null,
@@ -104,10 +105,10 @@ export default function ProfilePage() {
       {/* Header */}
       <header className="border-b sticky top-0 z-50" style={{ borderColor: '#E0E6ED', backgroundColor: '#FFFFFF' }}>
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">
-            <span style={{ color: '#00B4A0' }}>CERTIFIED</span>
-            <span style={{ color: '#2C3E50' }}> NEWS</span>
-          </h1>
+          <Link href="/home" className="flex items-center space-x-3 hover:opacity-90 transition-opacity">
+            <Image src="/logo.png" alt="WCNA Logo" width={48} height={48} className="rounded" />
+            <span className="text-2xl font-bold tracking-tight" style={{ color: '#2C3E50' }}>WCNA</span>
+          </Link>
           <div className="flex items-center gap-4">
             <button
               onClick={handleGoHome}

@@ -268,8 +268,8 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4 flex-wrap">
           {/* Logo */}
           <Link href="/home" className="flex items-center space-x-2 flex-shrink-0">
-            <Image src="/logo.png" alt="WCNA Logo" width={32} height={32} className="rounded" />
-            <span className="text-xl font-bold tracking-tight" style={{ color: '#2C3E50' }}>WCNA</span>
+            <Image src="/logo.png" alt="WCNA Logo" width={48} height={48} className="rounded" />
+            <span className="text-2xl font-bold tracking-tight" style={{ color: '#2C3E50' }}>WCNA</span>
           </Link>
 
           {/* Mobile Menu Button */}

@@ -6,8 +6,8 @@ export function SiteHeader() {
     <header className="bg-[#0D1B2A] text-white py-3 px-6 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-3">
-          <Image src="/logo.png" alt="WCNA Logo" width={40} height={40} className="rounded" />
-          <span className="text-lg font-bold tracking-tight hidden sm:inline">WCNA</span>
+          <Image src="/logo.png" alt="WCNA Logo" width={52} height={52} className="rounded" />
+          <span className="text-xl font-bold tracking-tight hidden sm:inline">WCNA</span>
         </Link>
         <nav className="hidden md:flex space-x-8 font-medium">
           <Link href="/" className="hover:text-blue-400 transition-colors">Feed</Link>
@@ -30,7 +30,7 @@ export function SiteFooter() {
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
         <div>
           <div className="flex items-center space-x-2 mb-4">
-            <Image src="/logo.png" alt="WCNA Logo" width={32} height={32} className="rounded" />
+            <Image src="/logo.png" alt="WCNA Logo" width={40} height={40} className="rounded" />
             <h3 className="text-xl font-bold">WCNA</h3>
           </div>
           <p className="text-gray-400 text-sm leading-relaxed">
