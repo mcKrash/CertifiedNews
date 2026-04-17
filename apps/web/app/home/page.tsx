@@ -9,6 +9,8 @@ export default function HomePage() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [liveNews, setLiveNews] = useState([]);
   const [showPostBox, setShowPostBox] = useState(false);
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(false);
   
   // Post box state
   const [postTitle, setPostTitle] = useState('');
@@ -17,13 +19,12 @@ export default function HomePage() {
   const [isPosting, setIsPosting] = useState(false);
 
   const categories = [
-    { id: 'all', name: 'All News', icon: '📰' },
-    { id: 'sport', name: 'Sport', icon: '⚽' },
-    { id: 'politics', name: 'Politics', icon: '🏛️' },
-    { id: 'oceans', name: 'Oceans & Forests', icon: '🌊' },
-    { id: 'tech', name: 'Technology', icon: '💻' },
-    { id: 'health', name: 'Health', icon: '🏥' },
-    { id: 'science', name: 'Science', icon: '🔬' },
+    { id: 'all', name: 'All News', icon: '📰', categoryId: null },
+    { id: 'sport', name: 'Sport', icon: '⚽', categoryId: 1 },
+    { id: 'politics', name: 'Politics', icon: '🏛️', categoryId: 2 },
+    { id: 'tech', name: 'Technology', icon: '💻', categoryId: 3 },
+    { id: 'science', name: 'Science', icon: '🔬', categoryId: 4 },
+    { id: 'health', name: 'Health', icon: '🏥', categoryId: 5 },
   ];
 
   const newsChannels = [
@@ -58,6 +59,38 @@ export default function HomePage() {
     fetchLiveNews();
   }, []);
 
+  // Fetch articles based on active category
+  useEffect(() => {
+    const fetchArticles = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('/api/articles');
+        const data = await response.json();
+        
+        // Filter articles based on active category
+        let filtered = data;
+        if (activeCategory !== 'all') {
+          const selectedCategory = categories.find(c => c.id === activeCategory);
+          if (selectedCategory) {
+            filtered = data.filter((article: any) => article.categoryId === selectedCategory.categoryId);
+          }
+        }
+        
+        // Sort by published date (newest first)
+        filtered.sort((a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+        
+        setArticles(filtered);
+      } catch (error) {
+        console.error('Error fetching articles:', error);
+        setArticles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArticles();
+  }, [activeCategory]);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     router.push('/');
@@ -69,7 +102,7 @@ export default function HomePage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handlePostSubmit = (e) => {
+  const handlePostSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!postTitle || !postContent) return;
     
@@ -86,6 +119,25 @@ export default function HomePage() {
 
   const closePostBox = () => {
     setShowPostBox(false);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getCategoryName = (categoryId: number) => {
+    const category = categories.find(c => c.categoryId === categoryId);
+    return category ? category.name : 'News';
   };
 
   return (
@@ -257,7 +309,7 @@ export default function HomePage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold" style={{ color: '#2C3E50' }}>
-                Latest News
+                {activeCategory === 'all' ? 'Latest News' : `${categories.find(c => c.id === activeCategory)?.name || 'News'}`}
               </h2>
               <div className="flex gap-2">
                 <button className="text-xs font-bold text-[#00B4A0] hover:underline">Recent</button>
@@ -266,51 +318,65 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Sample News Cards */}
-            {[1, 2, 3, 4, 5].map(i => (
+            {/* Loading State */}
+            {loading && (
+              <div className="text-center py-12">
+                <p style={{ color: '#7F8C8D' }}>Loading articles...</p>
+              </div>
+            )}
+
+            {/* No Articles State */}
+            {!loading && articles.length === 0 && (
+              <div className="text-center py-12">
+                <p style={{ color: '#7F8C8D' }}>No articles found in this category.</p>
+              </div>
+            )}
+
+            {/* News Cards */}
+            {!loading && articles.map((article: any) => (
               <article
-                key={i}
+                key={article.id}
                 className="rounded-lg border p-6 hover:shadow-md transition-shadow bg-white"
                 style={{ borderColor: '#E0E6ED' }}
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-xs">📰</div>
-                    <div>
+                  <div className="flex gap-3 flex-1">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-xs flex-shrink-0">📰</div>
+                    <div className="flex-1">
                       <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#00B4A0' }}>
-                        {activeCategory === 'all' ? 'World' : activeCategory}
+                        {getCategoryName(article.categoryId)}
                       </p>
                       <h3 className="text-lg font-bold mt-1 leading-tight" style={{ color: '#2C3E50' }}>
-                        Breaking news story headline number {i}
+                        {article.title}
                       </h3>
                     </div>
                   </div>
                   <div
-                    className="px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1"
-                    style={{ backgroundColor: '#E8F8F5', color: '#00B4A0' }}
+                    className="px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 flex-shrink-0 ml-2"
+                    style={{ backgroundColor: article.status === 'verified' ? '#E8F8F5' : '#FFF3CD', color: article.status === 'verified' ? '#00B4A0' : '#856404' }}
                   >
-                    <span>✓</span> Verified
+                    <span>{article.status === 'verified' ? '✓' : '⏳'}</span> {article.status === 'verified' ? 'Verified' : 'Under Review'}
                   </div>
                 </div>
 
                 <p className="text-sm mb-4 leading-relaxed" style={{ color: '#7F8C8D' }}>
-                  This is a sample description for news item {i}. The platform ensures every piece of information is sourced from accredited journalists and verified through our audit trail.
+                  {article.body}
                 </p>
 
                 <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: '#E0E6ED' }}>
                   <div className="flex items-center gap-4 text-[10px] font-bold" style={{ color: '#95A5A6' }}>
-                    <span className="hover:text-[#00B4A0] cursor-pointer">BBC News</span>
+                    <span className="hover:text-[#00B4A0] cursor-pointer">{article.sourceName}</span>
                     <span>•</span>
-                    <span>2 hours ago</span>
+                    <span>{formatDate(article.publishedAt)}</span>
                   </div>
                   <div className="flex items-center gap-4">
                     <button className="flex items-center gap-1.5 group">
                       <span className="text-sm group-hover:scale-120 transition-transform">👍</span>
-                      <span className="text-[10px] font-bold text-gray-500">124</span>
+                      <span className="text-[10px] font-bold text-gray-500">{Math.floor(Math.random() * 200)}</span>
                     </button>
                     <button className="flex items-center gap-1.5 group">
                       <span className="text-sm group-hover:scale-120 transition-transform">💬</span>
-                      <span className="text-[10px] font-bold text-gray-500">18</span>
+                      <span className="text-[10px] font-bold text-gray-500">{Math.floor(Math.random() * 50)}</span>
                     </button>
                     <button className="flex items-center gap-1.5 group">
                       <span className="text-sm group-hover:scale-120 transition-transform">🔗</span>
