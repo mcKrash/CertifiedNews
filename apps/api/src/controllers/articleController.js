@@ -1,55 +1,27 @@
-const { articles, verificationLog, hydrateArticle } = require('../data/mockData');
+const { PrismaClient } = require('@prisma/client');
 
-// Lazy initialize Prisma to avoid startup errors when using mock data
-let prisma;
-function getPrisma() {
-  if (!prisma) {
-    const { PrismaClient } = require('@prisma/client');
-    prisma = new PrismaClient();
-  }
-  return prisma;
-}
+const prisma = new PrismaClient();
 
-// Helper to determine if we should use mock data
-function useMockData() {
-  return !process.env.DATABASE_URL;
-}
-
-// Get all articles with pagination and filters
-exports.getAllArticles = async (req, res) => {
+/**
+ * Get all articles with filtering and pagination
+ */
+const getArticles = async (req, res) => {
   try {
-    const { page = 1, limit = 10, category, search } = req.query;
-    const pageNumber = parseInt(page);
-    const limitNumber = parseInt(limit);
-    const skip = (pageNumber - 1) * limitNumber;
+    const { categoryId, sourceId, page = 1, limit = 10, search } = req.query;
 
-    if (useMockData()) {
-      let data = articles.map(hydrateArticle);
-      if (category) {
-        data = data.filter(a => a.category.slug === category);
-      }
-      if (search) {
-        const term = search.toLowerCase();
-        data = data.filter(a => a.title.toLowerCase().includes(term) || a.body.toLowerCase().includes(term));
-      }
-      const paginated = data.slice(skip, skip + limitNumber);
-      return res.status(200).json({
-        success: true,
-        data: paginated,
-        pagination: {
-          page: pageNumber,
-          limit: limitNumber,
-          total: data.length,
-          pages: Math.ceil(data.length / limitNumber),
-        },
-      });
+    const skip = (page - 1) * limit;
+    const where = {
+      status: 'VERIFIED',
+    };
+
+    if (categoryId && categoryId !== 'all') {
+      where.categoryId = categoryId;
     }
 
-    // Build where clause for filters
-    const where = {};
-    if (category) {
-      where.category = { slug: category };
+    if (sourceId) {
+      where.sourceId = sourceId;
     }
+
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
@@ -57,62 +29,80 @@ exports.getAllArticles = async (req, res) => {
       ];
     }
 
-    // Query database
-    const dbArticles = await getPrisma().article.findMany({
-      where,
-      skip,
-      take: limitNumber,
-      include: {
-        author: { select: { id: true, username: true, avatarUrl: true } },
-        category: { select: { id: true, name: true, slug: true } },
-      },
-      orderBy: { publishedAt: 'desc' },
-    });
-
-    // Get total count for pagination
-    const total = await getPrisma().article.count({ where });
+    const [articles, total] = await Promise.all([
+      prisma.article.findMany({
+        where,
+        include: {
+          source: true,
+          category: true,
+          _count: {
+            select: { votes: true, comments: true, bookmarks: true },
+          },
+        },
+        orderBy: { publishedAt: 'desc' },
+        skip,
+        take: parseInt(limit),
+      }),
+      prisma.article.count({ where }),
+    ]);
 
     res.status(200).json({
       success: true,
-      data: dbArticles,
+      data: articles.map(article => ({
+        ...article,
+        likeCount: article._count.votes,
+        commentCount: article._count.comments,
+        bookmarkCount: article._count.bookmarks,
+      })),
       pagination: {
-        page: pageNumber,
-        limit: limitNumber,
+        page: parseInt(page),
+        limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / limitNumber),
+        pages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
-    console.error('Error fetching articles:', error);
+    console.error('Get articles error:', error);
     res.status(500).json({
       success: false,
+      message: 'Failed to fetch articles',
       error: error.message,
     });
   }
 };
 
-// Get single article by ID
-exports.getArticleById = async (req, res) => {
+/**
+ * Get single article by ID
+ */
+const getArticleById = async (req, res) => {
   try {
     const { id } = req.params;
-    const articleId = parseInt(id);
 
-    if (useMockData()) {
-      const article = articles.find(a => a.id === articleId);
-      if (!article) {
-        return res.status(404).json({ success: false, error: 'Article not found' });
-      }
-      return res.status(200).json({ success: true, data: hydrateArticle(article) });
-    }
-
-    const article = await getPrisma().article.findUnique({
-      where: { id: articleId },
+    const article = await prisma.article.findUnique({
+      where: { id },
       include: {
-        author: { select: { id: true, username: true, avatarUrl: true } },
-        category: { select: { id: true, name: true, slug: true } },
-        verificationLogs: {
+        source: true,
+        category: true,
+        author: {
+          select: { id: true, name: true, avatar: true },
+        },
+        comments: {
+          include: {
+            user: {
+              select: { id: true, name: true, avatar: true },
+            },
+            replies: {
+              include: {
+                user: {
+                  select: { id: true, name: true, avatar: true },
+                },
+              },
+            },
+          },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+        },
+        _count: {
+          select: { votes: true, bookmarks: true },
         },
       },
     });
@@ -120,197 +110,111 @@ exports.getArticleById = async (req, res) => {
     if (!article) {
       return res.status(404).json({
         success: false,
-        error: 'Article not found',
+        message: 'Article not found',
       });
     }
 
-    // Increment view count
-    await getPrisma().article.update({
-      where: { id: articleId },
-      data: { viewCount: { increment: 1 } },
-    });
-
     res.status(200).json({
       success: true,
-      data: article,
+      data: {
+        ...article,
+        likeCount: article._count.votes,
+        bookmarkCount: article._count.bookmarks,
+      },
     });
   } catch (error) {
-    console.error('Error fetching article:', error);
+    console.error('Get article error:', error);
     res.status(500).json({
       success: false,
+      message: 'Failed to fetch article',
       error: error.message,
     });
   }
 };
 
-// Create new article (admin only)
-exports.createArticle = async (req, res) => {
+/**
+ * Get trending articles
+ */
+const getTrendingArticles = async (req, res) => {
   try {
-    const { title, body, categoryId, sourceUrl, sourceName, authorId, publishedAt } = req.body;
+    const { limit = 10 } = req.query;
 
-    // Validate required fields
-    if (!title || !body || !categoryId || !sourceUrl || !sourceName) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: title, body, categoryId, sourceUrl, sourceName',
-      });
-    }
-
-    if (useMockData()) {
-      const newArticle = {
-        id: articles.length + 101,
-        title,
-        body,
-        categoryId: parseInt(categoryId),
-        sourceUrl,
-        sourceName,
-        authorId: parseInt(authorId) || 1,
-        publishedAt: publishedAt || new Date().toISOString(),
-        status: 'pending',
-        imageUrl: null,
-        viewCount: 0,
-      };
-      articles.push(newArticle);
-      return res.status(201).json({ success: true, data: hydrateArticle(newArticle) });
-    }
-
-    // Create article
-    const newArticle = await getPrisma().article.create({
-      data: {
-        title,
-        body,
-        categoryId: parseInt(categoryId),
-        sourceUrl,
-        sourceName,
-        authorId: parseInt(authorId) || 1, // Default to admin user
-        publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
-        status: 'pending',
-      },
+    const articles = await prisma.article.findMany({
+      where: { status: 'VERIFIED' },
       include: {
-        author: { select: { id: true, username: true } },
-        category: { select: { id: true, name: true } },
+        source: true,
+        category: true,
+        _count: {
+          select: { votes: true, comments: true },
+        },
       },
+      orderBy: [
+        { votes: { _count: 'desc' } },
+        { publishedAt: 'desc' },
+      ],
+      take: parseInt(limit),
     });
 
-    // Log verification event
-    await getPrisma().verificationLog.create({
+    res.status(200).json({
+      success: true,
+      data: articles.map(article => ({
+        ...article,
+        likeCount: article._count.votes,
+        commentCount: article._count.comments,
+      })),
+    });
+  } catch (error) {
+    console.error('Get trending error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch trending articles',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Create article (for reporters)
+ */
+const createArticle = async (req, res) => {
+  try {
+    const { title, body, excerpt, imageUrl, sourceId, categoryId } = req.body;
+
+    const article = await prisma.article.create({
       data: {
-        articleId: newArticle.id,
-        contentType: 'article',
-        checkedBy: 'system',
-        result: 'pending',
-        notes: 'New article submitted, awaiting verification',
+        title,
+        body,
+        excerpt: excerpt || body.substring(0, 150),
+        imageUrl,
+        sourceId,
+        categoryId,
+        authorId: req.user.id,
+        status: 'UNDER_REVIEW',
+      },
+      include: {
+        source: true,
+        category: true,
       },
     });
 
     res.status(201).json({
       success: true,
-      message: 'Article created successfully and pending verification',
-      data: newArticle,
+      message: 'Article created successfully',
+      data: article,
     });
   } catch (error) {
-    console.error('Error creating article:', error);
+    console.error('Create article error:', error);
     res.status(500).json({
       success: false,
+      message: 'Failed to create article',
       error: error.message,
     });
   }
 };
 
-// Update article status (moderator action)
-exports.updateArticleStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, notes } = req.body;
-    const articleId = parseInt(id);
-
-    // Validate status
-    const validStatuses = ['verified', 'rejected', 'pending', 'unverified'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
-      });
-    }
-
-    if (useMockData()) {
-      const article = articles.find(a => a.id === articleId);
-      if (!article) {
-        return res.status(404).json({ success: false, error: 'Article not found' });
-      }
-      article.status = status;
-      return res.status(200).json({ success: true, data: hydrateArticle(article) });
-    }
-
-    // Update article
-    const updatedArticle = await getPrisma().article.update({
-      where: { id: articleId },
-      data: { status },
-      include: {
-        author: { select: { id: true, username: true } },
-        category: { select: { id: true, name: true } },
-      },
-    });
-
-    // Log verification action
-    await getPrisma().verificationLog.create({
-      data: {
-        articleId: articleId,
-        contentType: 'article',
-        checkedBy: 'moderator', // TODO: Get from authenticated user
-        result: status,
-        notes: notes || `Article status changed to ${status}`,
-      },
-    });
-
-    res.status(200).json({
-      success: true,
-      message: `Article status updated to ${status}`,
-      data: updatedArticle,
-    });
-  } catch (error) {
-    console.error('Error updating article status:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-};
-
-// Delete article (admin only)
-exports.deleteArticle = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const articleId = parseInt(id);
-
-    if (useMockData()) {
-      const index = articles.findIndex(a => a.id === articleId);
-      if (index === -1) {
-        return res.status(404).json({ success: false, error: 'Article not found' });
-      }
-      articles.splice(index, 1);
-      return res.status(200).json({ success: true, message: `Article ${id} deleted successfully` });
-    }
-
-    await getPrisma().article.delete({
-      where: { id: articleId },
-    });
-
-    res.status(200).json({
-      success: true,
-      message: `Article ${id} deleted successfully`,
-    });
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({
-        success: false,
-        error: 'Article not found',
-      });
-    }
-    console.error('Error deleting article:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
+module.exports = {
+  getArticles,
+  getArticleById,
+  getTrendingArticles,
+  createArticle,
 };
