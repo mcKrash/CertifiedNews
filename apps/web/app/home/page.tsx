@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { channels } from '@/lib/channels';
 import CommentSection from '@/components/CommentSection';
-import { HeartIcon, MessageCircleIcon, LinkChainIcon } from '@/lib/icons';
+import { HeartIcon, MessageCircleIcon, LinkChainIcon, CopyrightIcon, SupportIcon, PreferencesIcon } from '@/lib/icons';
 
 export default function HomePage() {
   const router = useRouter();
@@ -22,6 +22,12 @@ export default function HomePage() {
   const [articleLikes, setArticleLikes] = useState<Record<string, { liked: boolean; count: number }>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [feedPreferences, setFeedPreferences] = useState({
+    defaultCategory: 'all',
+    verifiedOnly: true,
+    liveTickerEnabled: true,
+    compactFeed: false,
+  });
   const searchRef = useRef<HTMLDivElement>(null);
   
   // Post box state
@@ -39,8 +45,24 @@ export default function HomePage() {
     { id: 'health', name: 'Health', icon: '🏥', categoryId: 5 },
   ];
 
+  useEffect(() => {
+    const storedPreferences = localStorage.getItem('wcna_preferences');
+    if (storedPreferences) {
+      const parsedPreferences = JSON.parse(storedPreferences);
+      setFeedPreferences((prev) => ({ ...prev, ...parsedPreferences }));
+      if (parsedPreferences.defaultCategory) {
+        setActiveCategory(parsedPreferences.defaultCategory);
+      }
+    }
+  }, []);
+
   // Fetch live news for the ticker
   useEffect(() => {
+    if (!feedPreferences.liveTickerEnabled) {
+      setLiveNews([]);
+      return;
+    }
+
     const fetchLiveNews = async () => {
       try {
         const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=http://feeds.bbci.co.uk/news/rss.xml');
@@ -60,7 +82,7 @@ export default function HomePage() {
       }
     };
     fetchLiveNews();
-  }, []);
+  }, [feedPreferences.liveTickerEnabled]);
 
   // Fetch articles based on active category
   useEffect(() => {
@@ -78,6 +100,10 @@ export default function HomePage() {
             filtered = data.filter((article: any) => article.categoryId === selectedCategory.categoryId);
           }
         }
+
+        if (feedPreferences.verifiedOnly) {
+          filtered = filtered.filter((article: any) => article.status === 'verified');
+        }
         
         // Sort by published date (newest first)
         filtered.sort((a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
@@ -92,7 +118,7 @@ export default function HomePage() {
     };
 
     fetchArticles();
-  }, [activeCategory]);
+  }, [activeCategory, feedPreferences.verifiedOnly]);
 
   // Real-time search functionality
   useEffect(() => {
@@ -443,32 +469,75 @@ export default function HomePage() {
                 {cat.name}
               </button>
             ))}
+
+            <div className="pt-4 mt-4 border-t space-y-2" style={{ borderColor: '#DDE6ED' }}>
+              <Link href="/support" className="w-full px-3 py-2 rounded-md text-sm font-medium flex items-center gap-3" style={{ color: '#2C3E50' }}>
+                <SupportIcon size={18} />
+                Contact Us
+              </Link>
+              <Link href="/preferences" className="w-full px-3 py-2 rounded-md text-sm font-medium flex items-center gap-3" style={{ color: '#2C3E50' }}>
+                <PreferencesIcon size={18} />
+                Preferences
+              </Link>
+              <div className="px-3 py-2 flex items-center gap-3 text-sm" style={{ color: '#7F8C8D' }}>
+                <CopyrightIcon size={18} />
+                <span>© 2026 WCNA</span>
+              </div>
+            </div>
           </div>
         )}
       </header>
 
       <div className="flex flex-col lg:flex-row">
         {/* Sidebar - Categories (Desktop only) */}
-        <aside className="hidden lg:block w-64 border-r p-6 sticky top-[73px] h-[calc(100vh-73px)] overflow-y-auto" style={{ borderColor: '#E0E6ED', backgroundColor: '#F5F7FA' }}>
-          <h3 className="text-sm font-bold uppercase tracking-widest mb-6" style={{ color: '#2C3E50' }}>
-            Categories
-          </h3>
-          <nav className="space-y-3">
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className="w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center"
-                style={{
-                  backgroundColor: activeCategory === cat.id ? '#00B4A0' : 'transparent',
-                  color: activeCategory === cat.id ? '#FFFFFF' : '#2C3E50',
-                }}
-              >
-                <span className="mr-3 text-lg">{cat.icon}</span>
-                {cat.name}
-              </button>
-            ))}
-          </nav>
+        <aside className="hidden lg:flex w-64 border-r p-6 sticky top-[73px] h-[calc(100vh-73px)] flex-col" style={{ borderColor: '#E0E6ED', backgroundColor: '#F5F7FA' }}>
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-widest mb-6" style={{ color: '#2C3E50' }}>
+              Categories
+            </h3>
+            <nav className="space-y-3">
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className="w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center"
+                  style={{
+                    backgroundColor: activeCategory === cat.id ? '#00B4A0' : 'transparent',
+                    color: activeCategory === cat.id ? '#FFFFFF' : '#2C3E50',
+                  }}
+                >
+                  <span className="mr-3 text-lg">{cat.icon}</span>
+                  {cat.name}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          <div className="mt-auto pt-6 border-t space-y-3" style={{ borderColor: '#DDE6ED' }}>
+            <div className="flex items-center gap-3 px-3 py-2 rounded-md" style={{ backgroundColor: '#FFFFFF' }}>
+              <CopyrightIcon size={18} />
+              <div>
+                <p className="text-sm font-semibold" style={{ color: '#2C3E50' }}>WCNA Rights</p>
+                <p className="text-xs" style={{ color: '#7F8C8D' }}>© 2026 World Certified News Alliance</p>
+              </div>
+            </div>
+
+            <Link href="/support" className="flex items-center gap-3 px-3 py-3 rounded-md transition-colors hover:bg-white" style={{ color: '#2C3E50' }}>
+              <SupportIcon size={18} />
+              <div>
+                <p className="text-sm font-semibold">Contact Us</p>
+                <p className="text-xs" style={{ color: '#7F8C8D' }}>Customer care and issue submission</p>
+              </div>
+            </Link>
+
+            <Link href="/preferences" className="flex items-center gap-3 px-3 py-3 rounded-md transition-colors hover:bg-white" style={{ color: '#2C3E50' }}>
+              <PreferencesIcon size={18} />
+              <div>
+                <p className="text-sm font-semibold">Preferences</p>
+                <p className="text-xs" style={{ color: '#7F8C8D' }}>Set your feed and safety options</p>
+              </div>
+            </Link>
+          </div>
         </aside>
 
         {/* Main Content */}
@@ -621,7 +690,7 @@ export default function HomePage() {
             {!loading && articles.map((article: any) => (
               <article
                 key={article.id}
-                className="rounded-lg border p-4 lg:p-6 hover:shadow-md transition-shadow bg-white"
+                className={`rounded-lg border ${feedPreferences.compactFeed ? 'p-3 lg:p-4' : 'p-4 lg:p-6'} hover:shadow-md transition-shadow bg-white`}
                 style={{ borderColor: '#E0E6ED' }}
               >
                 <div className="flex items-start justify-between mb-4 flex-col sm:flex-row gap-2">

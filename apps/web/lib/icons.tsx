@@ -259,3 +259,58 @@ export const ChatBubbleIcon = ({ size = 24 }: { size?: number }) => (
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
+
+export const CopyrightIcon = ({ size = 20 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#00B4A0"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M15 9.5a4 4 0 1 0 0 5" />
+  </svg>
+);
+
+export const SupportIcon = ({ size = 20 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#00B4A0"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M4 13a8 8 0 0 1 16 0" />
+    <path d="M4 13v3a2 2 0 0 0 2 2h2v-5H6a2 2 0 0 0-2 2Z" />
+    <path d="M20 13v3a2 2 0 0 1-2 2h-2v-5h2a2 2 0 0 1 2 2Z" />
+    <path d="M12 17v3" />
+    <path d="M12 20h2" />
+  </svg>
+);
+
+export const PreferencesIcon = ({ size = 20 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#00B4A0"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="4" y1="6" x2="20" y2="6" />
+    <line x1="4" y1="12" x2="20" y2="12" />
+    <line x1="4" y1="18" x2="20" y2="18" />
+    <circle cx="9" cy="6" r="2" fill="#00B4A0" stroke="none" />
+    <circle cx="15" cy="12" r="2" fill="#00B4A0" stroke="none" />
+    <circle cx="11" cy="18" r="2" fill="#00B4A0" stroke="none" />
+  </svg>
+);
