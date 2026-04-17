@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -11,6 +11,10 @@ export default function HomePage() {
   const [showPostBox, setShowPostBox] = useState(false);
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   
   // Post box state
   const [postTitle, setPostTitle] = useState('');
@@ -91,6 +95,76 @@ export default function HomePage() {
     fetchArticles();
   }, [activeCategory]);
 
+  // Real-time search functionality
+  useEffect(() => {
+    if (searchQuery.trim().length === 0) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const results: any[] = [];
+
+    // Search through articles
+    articles.forEach((article: any) => {
+      if (
+        article.title.toLowerCase().includes(query) ||
+        article.body.toLowerCase().includes(query) ||
+        article.sourceName.toLowerCase().includes(query)
+      ) {
+        results.push({
+          type: 'article',
+          id: article.id,
+          title: article.title,
+          body: article.body,
+          category: getCategoryName(article.categoryId),
+          source: article.sourceName,
+          status: article.status,
+        });
+      }
+    });
+
+    // Search through categories
+    categories.forEach((cat) => {
+      if (cat.name.toLowerCase().includes(query) && cat.id !== 'all') {
+        results.push({
+          type: 'category',
+          id: cat.id,
+          name: cat.name,
+          icon: cat.icon,
+        });
+      }
+    });
+
+    // Search through news channels
+    newsChannels.forEach((channel) => {
+      if (channel.name.toLowerCase().includes(query)) {
+        results.push({
+          type: 'channel',
+          id: channel.id,
+          name: channel.name,
+          avatar: channel.avatar,
+        });
+      }
+    });
+
+    setSearchResults(results.slice(0, 8)); // Limit to 8 results
+    setShowSearchResults(true);
+  }, [searchQuery, articles]);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     router.push('/');
@@ -121,6 +195,18 @@ export default function HomePage() {
     setShowPostBox(false);
   };
 
+  const handleSearchResultClick = (result: any) => {
+    if (result.type === 'category') {
+      setActiveCategory(result.id);
+      setSearchQuery('');
+      setShowSearchResults(false);
+    } else if (result.type === 'channel') {
+      // Could navigate to channel page in the future
+      setSearchQuery('');
+      setShowSearchResults(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -144,12 +230,135 @@ export default function HomePage() {
     <div className="min-h-screen" style={{ backgroundColor: '#FFFFFF' }}>
       {/* Header */}
       <header className="border-b sticky top-0 z-50" style={{ borderColor: '#E0E6ED', backgroundColor: '#FFFFFF' }}>
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-6">
+          {/* Logo */}
+          <h1 className="text-2xl font-bold flex-shrink-0">
             <span style={{ color: '#00B4A0' }}>CERTIFIED</span>
             <span style={{ color: '#2C3E50' }}> NEWS</span>
           </h1>
-          <div className="flex items-center gap-4">
+
+          {/* Search Bar - Center */}
+          <div className="flex-1 max-w-md" ref={searchRef}>
+            <div className="relative">
+              <div
+                className="flex items-center gap-3 px-4 py-2 rounded-lg border"
+                style={{ borderColor: '#E0E6ED', backgroundColor: '#F5F7FA' }}
+              >
+                <span className="text-gray-400">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Search articles, categories..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => searchQuery.trim().length > 0 && setShowSearchResults(true)}
+                  className="flex-1 bg-transparent text-sm focus:outline-none"
+                  style={{ color: '#2C3E50' }}
+                />
+              </div>
+
+              {/* Search Results Dropdown */}
+              {showSearchResults && searchResults.length > 0 && (
+                <div
+                  className="absolute top-full left-0 right-0 mt-2 rounded-lg border shadow-lg z-50"
+                  style={{ borderColor: '#E0E6ED', backgroundColor: '#FFFFFF' }}
+                >
+                  <div className="max-h-96 overflow-y-auto">
+                    {searchResults.map((result, idx) => (
+                      <div key={idx}>
+                        {result.type === 'article' && (
+                          <button
+                            onClick={() => handleSearchResultClick(result)}
+                            className="w-full text-left px-4 py-3 border-b hover:bg-gray-50 transition-colors"
+                            style={{ borderColor: '#E0E6ED' }}
+                          >
+                            <div className="flex items-start gap-3">
+                              <span className="text-lg flex-shrink-0">📰</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold" style={{ color: '#2C3E50' }}>
+                                  {result.title}
+                                </p>
+                                <p className="text-xs mt-1" style={{ color: '#7F8C8D' }}>
+                                  {result.body.substring(0, 60)}...
+                                </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className="text-xs font-bold" style={{ color: '#00B4A0' }}>
+                                    {result.category}
+                                  </span>
+                                  <span className="text-xs" style={{ color: '#95A5A6' }}>
+                                    • {result.source}
+                                  </span>
+                                </div>
+                              </div>
+                              <div
+                                className="px-2 py-1 rounded text-[10px] font-bold flex-shrink-0"
+                                style={{
+                                  backgroundColor: result.status === 'verified' ? '#E8F8F5' : '#FFF3CD',
+                                  color: result.status === 'verified' ? '#00B4A0' : '#856404',
+                                }}
+                              >
+                                {result.status === 'verified' ? '✓' : '⏳'}
+                              </div>
+                            </div>
+                          </button>
+                        )}
+
+                        {result.type === 'category' && (
+                          <button
+                            onClick={() => handleSearchResultClick(result)}
+                            className="w-full text-left px-4 py-3 border-b hover:bg-gray-50 transition-colors flex items-center gap-3"
+                            style={{ borderColor: '#E0E6ED' }}
+                          >
+                            <span className="text-lg">{result.icon}</span>
+                            <div>
+                              <p className="text-sm font-bold" style={{ color: '#2C3E50' }}>
+                                {result.name}
+                              </p>
+                              <p className="text-xs" style={{ color: '#7F8C8D' }}>
+                                Category
+                              </p>
+                            </div>
+                          </button>
+                        )}
+
+                        {result.type === 'channel' && (
+                          <button
+                            onClick={() => handleSearchResultClick(result)}
+                            className="w-full text-left px-4 py-3 border-b hover:bg-gray-50 transition-colors flex items-center gap-3"
+                            style={{ borderColor: '#E0E6ED' }}
+                          >
+                            <span className="text-lg">{result.avatar}</span>
+                            <div>
+                              <p className="text-sm font-bold" style={{ color: '#2C3E50' }}>
+                                {result.name}
+                              </p>
+                              <p className="text-xs" style={{ color: '#7F8C8D' }}>
+                                News Channel
+                              </p>
+                            </div>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No Results Message */}
+              {showSearchResults && searchResults.length === 0 && searchQuery.trim().length > 0 && (
+                <div
+                  className="absolute top-full left-0 right-0 mt-2 rounded-lg border shadow-lg p-4 text-center"
+                  style={{ borderColor: '#E0E6ED', backgroundColor: '#FFFFFF' }}
+                >
+                  <p className="text-sm" style={{ color: '#7F8C8D' }}>
+                    No results found for "{searchQuery}"
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Side - Profile & Logout */}
+          <div className="flex items-center gap-4 flex-shrink-0">
             <Link
               href="/profile"
               className="w-10 h-10 rounded-full flex items-center justify-center border-2"
