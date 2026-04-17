@@ -171,10 +171,17 @@ export default function ChannelPage() {
             <div className="flex items-start gap-6">
               {/* Channel Avatar */}
               <div
-                className="w-24 h-24 rounded-full flex items-center justify-center text-5xl border-4 flex-shrink-0"
+                className="w-24 h-24 rounded-full flex items-center justify-center border-4 flex-shrink-0 overflow-hidden"
                 style={{ borderColor: '#00B4A0', backgroundColor: '#FFFFFF' }}
               >
-                {channel.avatar}
+                <img
+                  src={channel.logo}
+                  alt={channel.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
               </div>
 
               {/* Channel Info */}
@@ -239,9 +246,14 @@ export default function ChannelPage() {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex gap-3 flex-1">
-                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-xs flex-shrink-0">
-                      {channel.avatar}
-                    </div>
+                    <img
+                      src={channel.logo}
+                      alt={channel.name}
+                      className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
                     <div className="flex-1">
                       <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#00B4A0' }}>
                         {channel.name}

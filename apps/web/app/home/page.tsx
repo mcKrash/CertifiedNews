@@ -435,12 +435,17 @@ export default function HomePage() {
                   className="flex-shrink-0 flex flex-col items-center cursor-pointer group"
                 >
                   <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-2xl border-2 group-hover:opacity-80 transition-opacity p-1 group-hover:shadow-lg group-hover:scale-110 transition-all"
+                    className="w-16 h-16 rounded-full flex items-center justify-center border-2 group-hover:opacity-80 transition-opacity p-1 group-hover:shadow-lg group-hover:scale-110 transition-all overflow-hidden"
                     style={{ borderColor: '#00B4A0', backgroundColor: '#FFFFFF' }}
                   >
-                    <div className="w-full h-full rounded-full flex items-center justify-center bg-gray-100">
-                      {channel.avatar}
-                    </div>
+                    <img
+                      src={channel.logo}
+                      alt={channel.name}
+                      className="w-full h-full object-cover rounded-full"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
                   </div>
                   <p className="text-[10px] font-bold mt-2 text-center" style={{ color: '#2C3E50', maxWidth: '64px' }}>
                     {channel.name}
