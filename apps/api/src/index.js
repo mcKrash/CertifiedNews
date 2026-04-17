@@ -21,6 +21,7 @@ app.use('/api/bookmarks', require('./routes/bookmarks'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/trust', require('./routes/trust'));
+app.use('/api/moderation', require('./routes/moderation'));
 
 // Health check
 app.get('/api/health', (req, res) => {
