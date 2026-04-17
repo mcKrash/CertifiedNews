@@ -471,37 +471,47 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
               No comments yet. Be the first to share your thoughts!
             </p>
           </div>
-                   {comments.map(comment => renderCommentThread(comment, false, 0))}     )}
+        ) : (
+          comments.map(comment => renderCommentThread(comment, false, 0))
+        )}
       </div>
 
       {/* Guidelines Modal */}
       {showGuidelinesModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-lg">
-            <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between" style={{ borderColor: '#E0E6ED' }}>
-              <h2 className="text-2xl font-bold" style={{ color: '#2C3E50' }}>
-                Community Guidelines
-              </h2>
-              <button
-                onClick={() => setShowGuidelinesModal(false)}
-                className="text-2xl font-bold"
-                style={{ color: '#95A5A6' }}
-              >
+            <div className="p-6 border-b sticky top-0 bg-white z-10 flex items-center justify-between">
+              <h2 className="text-xl font-bold" style={{ color: '#2C3E50' }}>Community Guidelines</h2>
+              <button onClick={() => setShowGuidelinesModal(false)} className="text-gray-500 hover:text-gray-700">
                 <CloseIcon size={24} />
               </button>
             </div>
-            <div className="p-6 prose prose-sm max-w-none" style={{ color: '#2C3E50' }}>
-              <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                {COMMUNITY_GUIDELINES}
+            <div className="p-6">
+              <div className="space-y-6">
+                {COMMUNITY_GUIDELINES.map((guideline, index) => (
+                  <div key={index} className="flex gap-4">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0" style={{ backgroundColor: '#00B4A0' }}>
+                      {index + 1}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg mb-1" style={{ color: '#2C3E50' }}>{guideline.title}</h3>
+                      <p className="text-sm leading-relaxed" style={{ color: '#7F8C8D' }}>{guideline.description}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="border-t p-6 flex justify-end gap-3" style={{ borderColor: '#E0E6ED' }}>
+              <div className="mt-8 p-4 rounded-lg bg-gray-50 border border-gray-200">
+                <h4 className="font-bold mb-2" style={{ color: '#2C3E50' }}>Enforcement Policy</h4>
+                <p className="text-sm" style={{ color: '#7F8C8D' }}>
+                  Violations of these guidelines will result in content removal. Repeated violations will lead to temporary or permanent bans from commenting on the platform.
+                </p>
+              </div>
               <button
                 onClick={() => setShowGuidelinesModal(false)}
-                className="px-6 py-2 rounded-lg font-bold"
-                style={{ backgroundColor: '#F5F7FA', color: '#2C3E50' }}
+                className="w-full mt-8 py-3 rounded-lg font-bold text-white transition-all"
+                style={{ backgroundColor: '#00B4A0' }}
               >
-                Close
+                I Understand
               </button>
             </div>
           </div>
@@ -510,6 +520,3 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
     </div>
   );
 }
-
-// Import LinkIcon from the icons library
-import { LinkIcon } from '@/lib/icons';
