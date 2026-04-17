@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { channels } from '@/lib/channels';
+import CommentSection from '@/components/CommentSection';
 
 export default function ChannelPage() {
   const router = useRouter();
@@ -300,6 +301,8 @@ export default function ChannelPage() {
                     </a>
                   </div>
                 </div>
+                {/* Comment Section */}
+                <CommentSection articleId={article.id} articleTitle={article.title} />
               </article>
             ))}
           </div>

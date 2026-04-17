@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { channels } from '@/lib/channels';
+import CommentSection from '@/components/CommentSection';
 
 export default function HomePage() {
   const router = useRouter();
@@ -629,6 +630,9 @@ export default function HomePage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Comment Section */}
+                <CommentSection articleId={article.id} articleTitle={article.title} />
               </article>
             ))}
           </div>
