@@ -51,8 +51,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-4">
             <Image src="/logo.png" alt="WCNA Logo" width={60} height={60} className="rounded" />
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: '#2C3E50' }}>WCNA</h1>
-          <p className="text-xs mt-1" style={{ color: '#7F8C8D' }}>World Certified News Alliance</p>
+
         </div>
 
         {/* Welcome Section */}
