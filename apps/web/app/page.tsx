@@ -49,7 +49,7 @@ export default function LoginPage() {
         {/* Logo and Title */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <Image src="/logo.png" alt="WCNA Logo" width={60} height={60} className="rounded" />
+            <Image src="/logo.png" alt="WCNA Logo" width={120} height={120} className="rounded" />
           </div>
 
         </div>
