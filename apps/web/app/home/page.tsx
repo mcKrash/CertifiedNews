@@ -15,6 +15,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   
   // Post box state
@@ -31,8 +32,6 @@ export default function HomePage() {
     { id: 'science', name: 'Science', icon: '🔬', categoryId: 4 },
     { id: 'health', name: 'Health', icon: '🏥', categoryId: 5 },
   ];
-
-
 
   // Fetch live news for the ticker
   useEffect(() => {
@@ -132,7 +131,7 @@ export default function HomePage() {
     });
 
     // Search through news channels
-    newsChannels.forEach((channel) => {
+    channels.forEach((channel) => {
       if (channel.name.toLowerCase().includes(query)) {
         results.push({
           type: 'channel',
@@ -143,7 +142,7 @@ export default function HomePage() {
       }
     });
 
-    setSearchResults(results.slice(0, 8)); // Limit to 8 results
+    setSearchResults(results.slice(0, 8));
     setShowSearchResults(true);
   }, [searchQuery, articles]);
 
@@ -166,7 +165,6 @@ export default function HomePage() {
 
   const handleNewPostClick = () => {
     setShowPostBox(true);
-    // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -195,10 +193,14 @@ export default function HomePage() {
       setSearchQuery('');
       setShowSearchResults(false);
     } else if (result.type === 'channel') {
-      // Could navigate to channel page in the future
       setSearchQuery('');
       setShowSearchResults(false);
     }
+  };
+
+  const handleCategoryClick = (categoryId: string) => {
+    setActiveCategory(categoryId);
+    setShowMobileMenu(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -224,16 +226,28 @@ export default function HomePage() {
     <div className="min-h-screen" style={{ backgroundColor: '#FFFFFF' }}>
       {/* Header */}
       <header className="border-b sticky top-0 z-50" style={{ borderColor: '#E0E6ED', backgroundColor: '#FFFFFF' }}>
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4 flex-wrap">
           {/* Logo */}
-          <h1 className="text-2xl font-bold flex-shrink-0">
+          <h1 className="text-xl lg:text-2xl font-bold flex-shrink-0">
             <span style={{ color: '#00B4A0' }}>CERTIFIED</span>
             <span style={{ color: '#2C3E50' }}> NEWS</span>
           </h1>
 
-          {/* Search Bar - Center */}
-          <div className="flex-1 max-w-md" ref={searchRef}>
-            <div className="relative">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="lg:hidden flex flex-col gap-1.5 p-2 rounded-md"
+            style={{ backgroundColor: '#F5F7FA' }}
+            title="Menu"
+          >
+            <div className="w-6 h-0.5" style={{ backgroundColor: '#2C3E50' }}></div>
+            <div className="w-6 h-0.5" style={{ backgroundColor: '#2C3E50' }}></div>
+            <div className="w-6 h-0.5" style={{ backgroundColor: '#2C3E50' }}></div>
+          </button>
+
+          {/* Search Bar - Hidden on very small screens */}
+          <div className="hidden sm:flex flex-1 max-w-md" ref={searchRef}>
+            <div className="relative w-full">
               <div
                 className="flex items-center gap-3 px-4 py-2 rounded-lg border"
                 style={{ borderColor: '#E0E6ED', backgroundColor: '#F5F7FA' }}
@@ -241,7 +255,7 @@ export default function HomePage() {
                 <span className="text-gray-400">🔍</span>
                 <input
                   type="text"
-                  placeholder="Search articles, categories..."
+                  placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => searchQuery.trim().length > 0 && setShowSearchResults(true)}
@@ -352,28 +366,51 @@ export default function HomePage() {
           </div>
 
           {/* Right Side - Profile & Logout */}
-          <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="flex items-center gap-2 lg:gap-4 flex-shrink-0">
             <Link
               href="/profile"
-              className="w-10 h-10 rounded-full flex items-center justify-center border-2"
+              className="w-10 h-10 rounded-full flex items-center justify-center border-2 text-lg"
               style={{ borderColor: '#00B4A0' }}
             >
               <span style={{ color: '#00B4A0' }}>👤</span>
             </Link>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 rounded-md text-sm font-semibold text-white"
+              className="px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-semibold text-white"
               style={{ backgroundColor: '#E74C3C' }}
             >
               Logout
             </button>
           </div>
         </div>
+
+        {/* Mobile Menu - Floating under header */}
+        {showMobileMenu && (
+          <div
+            className="lg:hidden border-t px-4 py-4 space-y-2"
+            style={{ borderColor: '#E0E6ED', backgroundColor: '#F5F7FA' }}
+          >
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => handleCategoryClick(cat.id)}
+                className="w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center"
+                style={{
+                  backgroundColor: activeCategory === cat.id ? '#00B4A0' : 'transparent',
+                  color: activeCategory === cat.id ? '#FFFFFF' : '#2C3E50',
+                }}
+              >
+                <span className="mr-3 text-lg">{cat.icon}</span>
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
-      <div className="flex">
-        {/* Sidebar - Categories */}
-        <aside className="w-64 border-r p-6 hidden lg:block sticky top-[73px] h-[calc(100vh-73px)] overflow-y-auto" style={{ borderColor: '#E0E6ED', backgroundColor: '#F5F7FA' }}>
+      <div className="flex flex-col lg:flex-row">
+        {/* Sidebar - Categories (Desktop only) */}
+        <aside className="hidden lg:block w-64 border-r p-6 sticky top-[73px] h-[calc(100vh-73px)] overflow-y-auto" style={{ borderColor: '#E0E6ED', backgroundColor: '#F5F7FA' }}>
           <h3 className="text-sm font-bold uppercase tracking-widest mb-6" style={{ color: '#2C3E50' }}>
             Categories
           </h3>
@@ -396,16 +433,16 @@ export default function HomePage() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 px-4 lg:px-8 py-8 max-w-4xl mx-auto">
+        <main className="flex-1 px-4 lg:px-8 py-8 max-w-4xl mx-auto w-full">
           {/* TV-Style Live News Status Bar */}
           {liveNews.length > 0 && (
-            <div className="flex items-stretch rounded-lg overflow-hidden mb-8 h-10 shadow-lg border-b-2 border-black/20">
+            <div className="flex items-stretch rounded-lg overflow-hidden mb-8 h-8 lg:h-10 shadow-lg border-b-2 border-black/20">
               {/* LIVE Label (Red Section) */}
-              <div className="bg-[#8B0000] flex items-center px-6 relative overflow-hidden">
+              <div className="bg-[#8B0000] flex items-center px-3 lg:px-6 relative overflow-hidden flex-shrink-0">
                 <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none">
-                  <span className="text-4xl">🌍</span>
+                  <span className="text-2xl lg:text-4xl">🌍</span>
                 </div>
-                <span className="text-white text-xs font-black tracking-tighter italic animate-pulse relative z-10">LIVE</span>
+                <span className="text-white text-[10px] lg:text-xs font-black tracking-tighter italic animate-pulse relative z-10">LIVE</span>
                 <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-black/30"></div>
               </div>
               
@@ -413,7 +450,7 @@ export default function HomePage() {
               <div className="flex-1 bg-white flex items-center overflow-hidden relative border-l-2 border-[#8B0000]">
                 <div className="animate-marquee flex gap-12 whitespace-nowrap px-4">
                   {liveNews.concat(liveNews).map((news, idx) => (
-                    <span key={idx} className="text-black text-xs font-bold tracking-wide uppercase italic">
+                    <span key={idx} className="text-black text-[10px] lg:text-xs font-bold tracking-wide uppercase italic">
                       {news} <span className="mx-4 text-gray-400">•</span>
                     </span>
                   ))}
@@ -489,7 +526,7 @@ export default function HomePage() {
                   className="w-full px-4 py-2 bg-gray-50 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#00B4A0] resize-none"
                   style={{ borderColor: '#E0E6ED' }}
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-col sm:flex-row">
                   <div className="flex-1 relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🔗</span>
                     <input
@@ -516,7 +553,7 @@ export default function HomePage() {
 
           {/* News Feed */}
           <div className="space-y-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-col sm:flex-row gap-2">
               <h2 className="text-xl font-bold" style={{ color: '#2C3E50' }}>
                 {activeCategory === 'all' ? 'Latest News' : `${categories.find(c => c.id === activeCategory)?.name || 'News'}`}
               </h2>
@@ -545,23 +582,23 @@ export default function HomePage() {
             {!loading && articles.map((article: any) => (
               <article
                 key={article.id}
-                className="rounded-lg border p-6 hover:shadow-md transition-shadow bg-white"
+                className="rounded-lg border p-4 lg:p-6 hover:shadow-md transition-shadow bg-white"
                 style={{ borderColor: '#E0E6ED' }}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex gap-3 flex-1">
+                <div className="flex items-start justify-between mb-4 flex-col sm:flex-row gap-2">
+                  <div className="flex gap-3 flex-1 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-xs flex-shrink-0">📰</div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#00B4A0' }}>
                         {getCategoryName(article.categoryId)}
                       </p>
-                      <h3 className="text-lg font-bold mt-1 leading-tight" style={{ color: '#2C3E50' }}>
+                      <h3 className="text-base lg:text-lg font-bold mt-1 leading-tight" style={{ color: '#2C3E50' }}>
                         {article.title}
                       </h3>
                     </div>
                   </div>
                   <div
-                    className="px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 flex-shrink-0 ml-2"
+                    className="px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 flex-shrink-0"
                     style={{ backgroundColor: article.status === 'verified' ? '#E8F8F5' : '#FFF3CD', color: article.status === 'verified' ? '#00B4A0' : '#856404' }}
                   >
                     <span>{article.status === 'verified' ? '✓' : '⏳'}</span> {article.status === 'verified' ? 'Verified' : 'Under Review'}
@@ -572,7 +609,7 @@ export default function HomePage() {
                   {article.body}
                 </p>
 
-                <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: '#E0E6ED' }}>
+                <div className="flex items-center justify-between pt-4 border-t flex-col sm:flex-row gap-2" style={{ borderColor: '#E0E6ED' }}>
                   <div className="flex items-center gap-4 text-[10px] font-bold" style={{ color: '#95A5A6' }}>
                     <span className="hover:text-[#00B4A0] cursor-pointer">{article.sourceName}</span>
                     <span>•</span>

@@ -130,7 +130,7 @@ export default function ChannelPage() {
   if (!channel) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FFFFFF' }}>
-        <div className="text-center">
+        <div className="text-center px-4">
           <h1 className="text-2xl font-bold mb-4" style={{ color: '#2C3E50' }}>
             Channel Not Found
           </h1>
@@ -146,8 +146,8 @@ export default function ChannelPage() {
     <div className="min-h-screen" style={{ backgroundColor: '#FFFFFF' }}>
       {/* Header */}
       <header className="border-b sticky top-0 z-50" style={{ borderColor: '#E0E6ED', backgroundColor: '#FFFFFF' }}>
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/home" className="text-2xl font-bold hover:opacity-80 transition-opacity">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+          <Link href="/home" className="text-xl lg:text-2xl font-bold hover:opacity-80 transition-opacity flex-shrink-0">
             <span style={{ color: '#00B4A0' }}>CERTIFIED</span>
             <span style={{ color: '#2C3E50' }}> NEWS</span>
           </Link>
@@ -156,7 +156,7 @@ export default function ChannelPage() {
               localStorage.removeItem('token');
               router.push('/');
             }}
-            className="px-4 py-2 rounded-md text-sm font-semibold text-white"
+            className="px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-semibold text-white flex-shrink-0"
             style={{ backgroundColor: '#E74C3C' }}
           >
             Logout
@@ -166,12 +166,12 @@ export default function ChannelPage() {
 
       {/* Channel Header */}
       <div className="border-b" style={{ borderColor: '#E0E6ED', backgroundColor: '#F5F7FA' }}>
-        <div className="max-w-4xl mx-auto px-4 lg:px-8 py-12">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex items-start gap-6">
+        <div className="max-w-4xl mx-auto px-4 lg:px-8 py-8 lg:py-12">
+          <div className="flex items-start justify-between gap-4 lg:gap-6 flex-col lg:flex-row">
+            <div className="flex items-start gap-4 lg:gap-6 w-full lg:w-auto">
               {/* Channel Avatar */}
               <div
-                className="w-24 h-24 rounded-full flex items-center justify-center border-4 flex-shrink-0 overflow-hidden"
+                className="w-16 lg:w-24 h-16 lg:h-24 rounded-full flex items-center justify-center border-4 flex-shrink-0 overflow-hidden"
                 style={{ borderColor: '#00B4A0', backgroundColor: '#FFFFFF' }}
               >
                 <img
@@ -185,18 +185,18 @@ export default function ChannelPage() {
               </div>
 
               {/* Channel Info */}
-              <div>
-                <h1 className="text-4xl font-bold mb-2" style={{ color: '#2C3E50' }}>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl lg:text-4xl font-bold mb-2" style={{ color: '#2C3E50' }}>
                   {channel.name}
                 </h1>
-                <p className="text-lg mb-4" style={{ color: '#7F8C8D' }}>
+                <p className="text-sm lg:text-lg mb-4" style={{ color: '#7F8C8D' }}>
                   {channel.description}
                 </p>
                 <a
                   href={channel.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-bold hover:underline"
+                  className="text-xs lg:text-sm font-bold hover:underline inline-block"
                   style={{ color: '#00B4A0' }}
                 >
                   Visit Official Website →
@@ -205,10 +205,10 @@ export default function ChannelPage() {
             </div>
 
             {/* Follow Button */}
-            <div className="flex-shrink-0">
+            <div className="w-full lg:w-auto flex-shrink-0">
               <button
                 onClick={handleFollowClick}
-                className="px-6 py-3 rounded-lg font-bold text-white transition-all hover:shadow-lg"
+                className="w-full lg:w-auto px-6 py-3 rounded-lg font-bold text-white transition-all hover:shadow-lg"
                 style={{
                   backgroundColor: isFollowing ? '#00B4A0' : '#00B4A0',
                   opacity: isFollowing ? 1 : 1,
@@ -224,7 +224,7 @@ export default function ChannelPage() {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 lg:px-8 py-8">
         {/* Section Title */}
-        <h2 className="text-2xl font-bold mb-8" style={{ color: '#2C3E50' }}>
+        <h2 className="text-xl lg:text-2xl font-bold mb-8" style={{ color: '#2C3E50' }}>
           Latest from {channel.name}
         </h2>
 
@@ -241,11 +241,11 @@ export default function ChannelPage() {
             {articles.map((article) => (
               <article
                 key={article.id}
-                className="rounded-lg border p-6 hover:shadow-md transition-shadow bg-white"
+                className="rounded-lg border p-4 lg:p-6 hover:shadow-md transition-shadow bg-white"
                 style={{ borderColor: '#E0E6ED' }}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex gap-3 flex-1">
+                <div className="flex items-start justify-between mb-4 flex-col sm:flex-row gap-2">
+                  <div className="flex gap-3 flex-1 min-w-0">
                     <img
                       src={channel.logo}
                       alt={channel.name}
@@ -254,17 +254,17 @@ export default function ChannelPage() {
                         (e.target as HTMLImageElement).style.display = 'none';
                       }}
                     />
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#00B4A0' }}>
                         {channel.name}
                       </p>
-                      <h3 className="text-lg font-bold mt-1 leading-tight" style={{ color: '#2C3E50' }}>
+                      <h3 className="text-base lg:text-lg font-bold mt-1 leading-tight" style={{ color: '#2C3E50' }}>
                         {article.title}
                       </h3>
                     </div>
                   </div>
                   <div
-                    className="px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 flex-shrink-0 ml-2"
+                    className="px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 flex-shrink-0"
                     style={{ backgroundColor: '#E8F8F5', color: '#00B4A0' }}
                   >
                     <span>✓</span> Verified
@@ -275,7 +275,7 @@ export default function ChannelPage() {
                   {article.body.substring(0, 200)}...
                 </p>
 
-                <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: '#E0E6ED' }}>
+                <div className="flex items-center justify-between pt-4 border-t flex-col sm:flex-row gap-2" style={{ borderColor: '#E0E6ED' }}>
                   <div className="flex items-center gap-4 text-[10px] font-bold" style={{ color: '#95A5A6' }}>
                     <span>{channel.name}</span>
                     <span>•</span>
@@ -305,38 +305,35 @@ export default function ChannelPage() {
           </div>
         )}
 
-        {/* No Articles State */}
+        {/* Empty State */}
         {!loading && articles.length === 0 && (
           <div className="text-center py-12">
-            <p style={{ color: '#7F8C8D' }}>No articles available at the moment. Check back soon!</p>
+            <p style={{ color: '#7F8C8D' }}>No articles available at the moment.</p>
           </div>
         )}
       </main>
 
       {/* Unfollow Confirmation Modal */}
       {showUnfollowConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div
-            className="bg-white rounded-lg p-8 max-w-sm shadow-xl"
-            style={{ borderColor: '#E0E6ED' }}
-          >
-            <h2 className="text-xl font-bold mb-4" style={{ color: '#2C3E50' }}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-lg">
+            <h3 className="text-lg font-bold mb-4" style={{ color: '#2C3E50' }}>
               Unfollow {channel.name}?
-            </h2>
+            </h3>
             <p className="mb-6" style={{ color: '#7F8C8D' }}>
-              Are you sure you want to unfollow {channel.name}? You can follow again anytime.
+              Are you sure you want to unfollow this channel? You can follow it again anytime.
             </p>
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <button
                 onClick={() => handleUnfollowConfirm(false)}
-                className="flex-1 px-4 py-2 rounded-lg font-bold border transition-colors"
+                className="flex-1 px-4 py-2 rounded-md font-bold border"
                 style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
               >
                 No, Keep Following
               </button>
               <button
                 onClick={() => handleUnfollowConfirm(true)}
-                className="flex-1 px-4 py-2 rounded-lg font-bold text-white transition-colors"
+                className="flex-1 px-4 py-2 rounded-md font-bold text-white"
                 style={{ backgroundColor: '#E74C3C' }}
               >
                 Yes, Unfollow
