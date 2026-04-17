@@ -1,0 +1,359 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+export default function HomePage() {
+  const router = useRouter();
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [liveNews, setLiveNews] = useState([]);
+  const [showPostBox, setShowPostBox] = useState(false);
+  
+  // Post box state
+  const [postTitle, setPostTitle] = useState('');
+  const [postContent, setPostContent] = useState('');
+  const [postSourceUrl, setPostSourceUrl] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
+
+  const categories = [
+    { id: 'all', name: 'All News', icon: '📰' },
+    { id: 'sport', name: 'Sport', icon: '⚽' },
+    { id: 'politics', name: 'Politics', icon: '🏛️' },
+    { id: 'oceans', name: 'Oceans & Forests', icon: '🌊' },
+    { id: 'tech', name: 'Technology', icon: '💻' },
+    { id: 'health', name: 'Health', icon: '🏥' },
+    { id: 'science', name: 'Science', icon: '🔬' },
+  ];
+
+  const newsChannels = [
+    { id: 1, name: 'BBC News', avatar: '🔴', stories: 12 },
+    { id: 2, name: 'Reuters', avatar: '🟠', stories: 8 },
+    { id: 3, name: 'AP News', avatar: '🟡', stories: 15 },
+    { id: 4, name: 'The Guardian', avatar: '🟢', stories: 10 },
+    { id: 5, name: 'NPR', avatar: '🔵', stories: 7 },
+    { id: 6, name: 'CNN', avatar: '🟣', stories: 11 },
+  ];
+
+  // Fetch live news for the ticker
+  useEffect(() => {
+    const fetchLiveNews = async () => {
+      try {
+        const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=http://feeds.bbci.co.uk/news/rss.xml');
+        const data = await response.json();
+        if (data.status === 'ok') {
+          setLiveNews(data.items.map(item => item.title));
+        }
+      } catch (error) {
+        console.error('Error fetching live news:', error);
+        setLiveNews([
+          "Global markets react to new economic data",
+          "SpaceX successfully launches latest satellite constellation",
+          "New breakthrough in renewable energy storage announced",
+          "World leaders gather for climate summit in Geneva",
+          "Tech giants announce new AI safety standards"
+        ]);
+      }
+    };
+    fetchLiveNews();
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/');
+  };
+
+  const handleNewPostClick = () => {
+    setShowPostBox(true);
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePostSubmit = (e) => {
+    e.preventDefault();
+    if (!postTitle || !postContent) return;
+    
+    setIsPosting(true);
+    setTimeout(() => {
+      alert('Post submitted for verification!');
+      setPostTitle('');
+      setPostContent('');
+      setPostSourceUrl('');
+      setIsPosting(false);
+      setShowPostBox(false);
+    }, 1000);
+  };
+
+  const closePostBox = () => {
+    setShowPostBox(false);
+  };
+
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: '#FFFFFF' }}>
+      {/* Header */}
+      <header className="border-b sticky top-0 z-50" style={{ borderColor: '#E0E6ED', backgroundColor: '#FFFFFF' }}>
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">
+            <span style={{ color: '#00B4A0' }}>CERTIFIED</span>
+            <span style={{ color: '#2C3E50' }}> NEWS</span>
+          </h1>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/profile"
+              className="w-10 h-10 rounded-full flex items-center justify-center border-2"
+              style={{ borderColor: '#00B4A0' }}
+            >
+              <span style={{ color: '#00B4A0' }}>👤</span>
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 rounded-md text-sm font-semibold text-white"
+              style={{ backgroundColor: '#E74C3C' }}
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex">
+        {/* Sidebar - Categories */}
+        <aside className="w-64 border-r p-6 hidden lg:block sticky top-[73px] h-[calc(100vh-73px)] overflow-y-auto" style={{ borderColor: '#E0E6ED', backgroundColor: '#F5F7FA' }}>
+          <h3 className="text-sm font-bold uppercase tracking-widest mb-6" style={{ color: '#2C3E50' }}>
+            Categories
+          </h3>
+          <nav className="space-y-3">
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className="w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center"
+                style={{
+                  backgroundColor: activeCategory === cat.id ? '#00B4A0' : 'transparent',
+                  color: activeCategory === cat.id ? '#FFFFFF' : '#2C3E50',
+                }}
+              >
+                <span className="mr-3 text-lg">{cat.icon}</span>
+                {cat.name}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 px-4 lg:px-8 py-8 max-w-4xl mx-auto">
+          {/* TV-Style Live News Status Bar */}
+          {liveNews.length > 0 && (
+            <div className="flex items-stretch rounded-lg overflow-hidden mb-8 h-10 shadow-lg border-b-2 border-black/20">
+              {/* LIVE Label (Red Section) */}
+              <div className="bg-[#8B0000] flex items-center px-6 relative overflow-hidden">
+                <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none">
+                  <span className="text-4xl">🌍</span>
+                </div>
+                <span className="text-white text-xs font-black tracking-tighter italic animate-pulse relative z-10">LIVE</span>
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-black/30"></div>
+              </div>
+              
+              {/* Ticker Content (White Section with Black Text) */}
+              <div className="flex-1 bg-white flex items-center overflow-hidden relative border-l-2 border-[#8B0000]">
+                <div className="animate-marquee flex gap-12 whitespace-nowrap px-4">
+                  {liveNews.concat(liveNews).map((news, idx) => (
+                    <span key={idx} className="text-black text-xs font-bold tracking-wide uppercase italic">
+                      {news} <span className="mx-4 text-gray-400">•</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* News Channels - Instagram Stories Style */}
+          <div className="mb-10">
+            <h2 className="text-lg font-bold mb-4" style={{ color: '#2C3E50' }}>
+              Channels of News
+            </h2>
+            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+              {newsChannels.map(channel => (
+                <div
+                  key={channel.id}
+                  className="flex-shrink-0 flex flex-col items-center cursor-pointer group"
+                >
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-2xl border-2 group-hover:opacity-80 transition-opacity p-1"
+                    style={{ borderColor: '#00B4A0', backgroundColor: '#FFFFFF' }}
+                  >
+                    <div className="w-full h-full rounded-full flex items-center justify-center bg-gray-100">
+                      {channel.avatar}
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-bold mt-2 text-center" style={{ color: '#2C3E50', maxWidth: '64px' }}>
+                    {channel.name}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Conditional Post Box - Only shown when showPostBox is true */}
+          {showPostBox && (
+            <div className="bg-white rounded-lg border mb-8 p-4 shadow-sm" style={{ borderColor: '#E0E6ED' }}>
+              <div className="flex gap-3 mb-4 items-start">
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg border flex-shrink-0">👤</div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-gray-800">Post a verified update</p>
+                  <p className="text-[10px] text-gray-500">Help the community stay informed with sourced news</p>
+                </div>
+                <button
+                  onClick={closePostBox}
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <form onSubmit={handlePostSubmit} className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Title of the news..."
+                  value={postTitle}
+                  onChange={(e) => setPostTitle(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#00B4A0]"
+                  style={{ borderColor: '#E0E6ED' }}
+                />
+                <textarea
+                  placeholder="What's happening? (Post details)"
+                  value={postContent}
+                  onChange={(e) => setPostContent(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-2 bg-gray-50 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#00B4A0] resize-none"
+                  style={{ borderColor: '#E0E6ED' }}
+                />
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🔗</span>
+                    <input
+                      type="url"
+                      placeholder="Source URL (required for verification)"
+                      value={postSourceUrl}
+                      onChange={(e) => setPostSourceUrl(e.target.value)}
+                      className="w-full pl-8 pr-4 py-2 bg-gray-50 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#00B4A0]"
+                      style={{ borderColor: '#E0E6ED' }}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isPosting || !postTitle || !postContent}
+                    className="px-6 py-2 rounded-md font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: '#00B4A0' }}
+                  >
+                    {isPosting ? 'Posting...' : 'Post News'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* News Feed */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold" style={{ color: '#2C3E50' }}>
+                Latest News
+              </h2>
+              <div className="flex gap-2">
+                <button className="text-xs font-bold text-[#00B4A0] hover:underline">Recent</button>
+                <span className="text-gray-300">|</span>
+                <button className="text-xs font-bold text-gray-400 hover:text-[#00B4A0]">Trending</button>
+              </div>
+            </div>
+
+            {/* Sample News Cards */}
+            {[1, 2, 3, 4, 5].map(i => (
+              <article
+                key={i}
+                className="rounded-lg border p-6 hover:shadow-md transition-shadow bg-white"
+                style={{ borderColor: '#E0E6ED' }}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-xs">📰</div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#00B4A0' }}>
+                        {activeCategory === 'all' ? 'World' : activeCategory}
+                      </p>
+                      <h3 className="text-lg font-bold mt-1 leading-tight" style={{ color: '#2C3E50' }}>
+                        Breaking news story headline number {i}
+                      </h3>
+                    </div>
+                  </div>
+                  <div
+                    className="px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1"
+                    style={{ backgroundColor: '#E8F8F5', color: '#00B4A0' }}
+                  >
+                    <span>✓</span> Verified
+                  </div>
+                </div>
+
+                <p className="text-sm mb-4 leading-relaxed" style={{ color: '#7F8C8D' }}>
+                  This is a sample description for news item {i}. The platform ensures every piece of information is sourced from accredited journalists and verified through our audit trail.
+                </p>
+
+                <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: '#E0E6ED' }}>
+                  <div className="flex items-center gap-4 text-[10px] font-bold" style={{ color: '#95A5A6' }}>
+                    <span className="hover:text-[#00B4A0] cursor-pointer">BBC News</span>
+                    <span>•</span>
+                    <span>2 hours ago</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button className="flex items-center gap-1.5 group">
+                      <span className="text-sm group-hover:scale-120 transition-transform">👍</span>
+                      <span className="text-[10px] font-bold text-gray-500">124</span>
+                    </button>
+                    <button className="flex items-center gap-1.5 group">
+                      <span className="text-sm group-hover:scale-120 transition-transform">💬</span>
+                      <span className="text-[10px] font-bold text-gray-500">18</span>
+                    </button>
+                    <button className="flex items-center gap-1.5 group">
+                      <span className="text-sm group-hover:scale-120 transition-transform">🔗</span>
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </main>
+      </div>
+
+      {/* Floating "New Post" Button - Bottom Right */}
+      {!showPostBox && (
+        <button
+          onClick={handleNewPostClick}
+          className="fixed bottom-8 right-8 w-14 h-14 rounded-full text-white text-2xl font-bold shadow-lg hover:shadow-xl transition-all hover:scale-110 z-40"
+          style={{ backgroundColor: '#00B4A0' }}
+          title="New Post"
+        >
+          +
+        </button>
+      )}
+
+      <style jsx global>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+          animation: marquee 60s linear infinite;
+        }
+        .animate-marquee:hover {
+          animation-play-state: paused;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+    </div>
+  );
+}
