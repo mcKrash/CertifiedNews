@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { channels } from '@/lib/channels';
 import CommentSection from '@/components/CommentSection';
@@ -266,10 +267,10 @@ export default function HomePage() {
       <header className="border-b sticky top-0 z-50" style={{ borderColor: '#E0E6ED', backgroundColor: '#FFFFFF' }}>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4 flex-wrap">
           {/* Logo */}
-          <h1 className="text-xl lg:text-2xl font-bold flex-shrink-0">
-            <span style={{ color: '#00B4A0' }}>CERTIFIED</span>
-            <span style={{ color: '#2C3E50' }}> NEWS</span>
-          </h1>
+          <Link href="/home" className="flex items-center space-x-2 flex-shrink-0">
+            <Image src="/logo.png" alt="WCNA Logo" width={32} height={32} className="rounded" />
+            <span className="text-xl font-bold tracking-tight" style={{ color: '#2C3E50' }}>WCNA</span>
+          </Link>
 
           {/* Mobile Menu Button */}
           <button

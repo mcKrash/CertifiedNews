@@ -61,22 +61,7 @@ export default function LoginPage() {
           <p className="text-gray-600">Sign in to your account</p>
         </div>
 
-        {/* Quick Access Bypass */}
-        <div className="mb-6 p-4 rounded-md" style={{ backgroundColor: '#E8F8F5', borderLeft: '4px solid #00B4A0' }}>
-          <p className="text-sm font-semibold" style={{ color: '#00B4A0' }}>Quick Access:</p>
-          <p className="text-xs mt-1" style={{ color: '#2C3E50' }}>
-            Click below to enter the platform immediately.
-          </p>
-          <button
-            type="button"
-            onClick={handleBypass}
-            disabled={loading}
-            className="mt-3 w-full px-3 py-3 text-sm font-bold rounded-md text-white transition-opacity"
-            style={{ backgroundColor: '#00B4A0', opacity: loading ? 0.7 : 1 }}
-          >
-            {loading ? 'Entering...' : 'Enter Main Feed'}
-          </button>
-        </div>
+
 
         {/* Login Form (Also acts as bypass) */}
         <form onSubmit={handleLogin} className="space-y-4 mb-6">
