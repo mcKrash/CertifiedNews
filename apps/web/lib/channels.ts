@@ -1,0 +1,58 @@
+export const channels = [
+  {
+    id: 1,
+    name: 'BBC News',
+    avatar: '🔴',
+    description: 'Breaking news and in-depth reporting from BBC News',
+    rssUrl: 'http://feeds.bbci.co.uk/news/rss.xml',
+    website: 'https://www.bbc.com/news',
+    color: '#E74C3C',
+  },
+  {
+    id: 2,
+    name: 'Reuters',
+    avatar: '🟠',
+    description: 'International news and reporting from Reuters',
+    rssUrl: 'https://feeds.reuters.com/reuters/businessNews',
+    website: 'https://www.reuters.com',
+    color: '#E67E22',
+  },
+  {
+    id: 3,
+    name: 'AP News',
+    avatar: '🟡',
+    description: 'Breaking news from the Associated Press',
+    rssUrl: 'https://apnews.com/apf-services/APIFeeds/rss',
+    website: 'https://apnews.com',
+    color: '#F39C12',
+  },
+  {
+    id: 4,
+    name: 'The Guardian',
+    avatar: '🟢',
+    description: 'Independent journalism from The Guardian',
+    rssUrl: 'https://www.theguardian.com/world/rss',
+    website: 'https://www.theguardian.com',
+    color: '#27AE60',
+  },
+  {
+    id: 5,
+    name: 'NPR',
+    avatar: '🔵',
+    description: 'News and insights from NPR',
+    rssUrl: 'https://feeds.npr.org/1001/rss.xml',
+    website: 'https://www.npr.org',
+    color: '#3498DB',
+  },
+  {
+    id: 6,
+    name: 'CNN',
+    avatar: '🟣',
+    description: 'Breaking news and live coverage from CNN',
+    rssUrl: 'https://feeds.cnn.com/rss/edition.rss',
+    website: 'https://www.cnn.com',
+    color: '#9B59B6',
+  },
+];
+
+export type Channel = (typeof channels)[0];

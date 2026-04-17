@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { channels } from '@/lib/channels';
 
 export default function HomePage() {
   const router = useRouter();
@@ -31,14 +32,7 @@ export default function HomePage() {
     { id: 'health', name: 'Health', icon: '🏥', categoryId: 5 },
   ];
 
-  const newsChannels = [
-    { id: 1, name: 'BBC News', avatar: '🔴', stories: 12 },
-    { id: 2, name: 'Reuters', avatar: '🟠', stories: 8 },
-    { id: 3, name: 'AP News', avatar: '🟡', stories: 15 },
-    { id: 4, name: 'The Guardian', avatar: '🟢', stories: 10 },
-    { id: 5, name: 'NPR', avatar: '🔵', stories: 7 },
-    { id: 6, name: 'CNN', avatar: '🟣', stories: 11 },
-  ];
+
 
   // Fetch live news for the ticker
   useEffect(() => {
@@ -434,13 +428,14 @@ export default function HomePage() {
               Channels of News
             </h2>
             <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-              {newsChannels.map(channel => (
-                <div
+              {channels.map(channel => (
+                <Link
                   key={channel.id}
+                  href={`/channel/${channel.id}`}
                   className="flex-shrink-0 flex flex-col items-center cursor-pointer group"
                 >
                   <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-2xl border-2 group-hover:opacity-80 transition-opacity p-1"
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-2xl border-2 group-hover:opacity-80 transition-opacity p-1 group-hover:shadow-lg group-hover:scale-110 transition-all"
                     style={{ borderColor: '#00B4A0', backgroundColor: '#FFFFFF' }}
                   >
                     <div className="w-full h-full rounded-full flex items-center justify-center bg-gray-100">
@@ -450,7 +445,7 @@ export default function HomePage() {
                   <p className="text-[10px] font-bold mt-2 text-center" style={{ color: '#2C3E50', maxWidth: '64px' }}>
                     {channel.name}
                   </p>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
