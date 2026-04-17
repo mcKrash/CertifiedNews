@@ -1,0 +1,251 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  name          String?
+  password      String?
+  avatar        String?
+  bio           String?
+  role          UserRole   @default(USER)
+  isVerified    Boolean    @default(false)
+  isBanned      Boolean    @default(false)
+  banReason     String?
+  banExpiresAt  DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relations
+  articles      Article[]
+  votes         Vote[]
+  comments      Comment[]
+  bookmarks     Bookmark[]
+  notifications Notification[]
+  posts         Post[]
+
+  @@index([email])
+  @@index([role])
+  @@index([isBanned])
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  description String?
+  icon      String?
+  color     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  articles  Article[]
+  posts     Post[]
+
+  @@index([slug])
+}
+
+model Source {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  domain      String    @unique
+  url         String
+  logo        String?
+  description String?
+  isVerified  Boolean   @default(false)
+  trustScore  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  articles    Article[]
+
+  @@index([domain])
+  @@index([isVerified])
+  @@index([trustScore])
+}
+
+model Article {
+  id            String    @id @default(cuid())
+  title         String
+  body          String
+  excerpt       String?
+  imageUrl      String?
+  sourceId      String
+  categoryId    String
+  authorId      String?
+  status        ArticleStatus @default(PENDING)
+  trustScore    Int       @default(0)
+  verifiedAt    DateTime?
+  publishedAt   DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  source        Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  category      Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  author        User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  votes         Vote[]
+  comments      Comment[]
+  bookmarks     Bookmark[]
+
+  @@index([sourceId])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([trustScore])
+}
+
+model Post {
+  id            String    @id @default(cuid())
+  content       String
+  imageUrl      String?
+  authorId      String
+  categoryId    String
+  status        PostStatus @default(PENDING)
+  sourceUrl     String?
+  sourceDomain  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  category      Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  votes         Vote[]
+  comments      Comment[]
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Vote {
+  id        String    @id @default(cuid())
+  userId    String
+  articleId String?
+  postId    String?
+  type      VoteType  @default(LIKE)
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article   Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId, type])
+  @@unique([userId, postId, type])
+  @@index([userId])
+  @@index([articleId])
+  @@index([postId])
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  content   String
+  userId    String
+  articleId String?
+  postId    String?
+  parentId  String?
+  status    CommentStatus @default(APPROVED)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article   Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  votes     Vote[]
+
+  @@index([userId])
+  @@index([articleId])
+  @@index([postId])
+  @@index([parentId])
+  @@index([status])
+}
+
+model Bookmark {
+  id        String    @id @default(cuid())
+  userId    String
+  articleId String
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article   Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@index([userId])
+  @@index([articleId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  relatedId String?
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// Enums
+enum UserRole {
+  USER
+  REPORTER
+  ADMIN
+}
+
+enum ArticleStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  UNDER_REVIEW
+}
+
+enum PostStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  UNDER_REVIEW
+}
+
+enum VoteType {
+  LIKE
+  DISLIKE
+}
+
+enum CommentStatus {
+  APPROVED
+  PENDING
+  REJECTED
+}
+
+enum NotificationType {
+  COMMENT_REPLY
+  ARTICLE_VERIFIED
+  POST_APPROVED
+  SYSTEM_ALERT
+  NEW_FOLLOWER
+}
