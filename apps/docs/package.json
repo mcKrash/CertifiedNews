@@ -1,0 +1,10 @@
+{
+  "name": "docs",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Docs server running on port 3002' && sleep infinity",
+    "build": "echo 'Docs built'",
+    "lint": "echo 'No linting for docs'"
+  }
+}
