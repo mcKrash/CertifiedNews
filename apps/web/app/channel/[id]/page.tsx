@@ -16,6 +16,7 @@ export default function ChannelPage() {
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [articleLikes, setArticleLikes] = useState<Record<string, { liked: boolean; count: number }>>({});
 
   // Check if user is following this channel (from localStorage)
   useEffect(() => {
@@ -112,6 +113,28 @@ export default function ChannelPage() {
       setIsFollowing(false);
     }
     setShowUnfollowConfirm(false);
+
+  const handleArticleLike = (articleId: string) => {
+    setArticleLikes(prev => {
+      const current = prev[articleId] || { liked: false, count: Math.floor(Math.random() * 200) };
+      return {
+        ...prev,
+        [articleId]: {
+          liked: !current.liked,
+          count: current.liked ? current.count - 1 : current.count + 1,
+        },
+      };
+    });
+  };
+
+  const getArticleLikeData = (articleId: string) => {
+    return articleLikes[articleId] || { liked: false, count: Math.floor(Math.random() * 200) };
+  };
+
+  const getTotalEngagement = (articleId: string) => {
+    const likeData = getArticleLikeData(articleId);
+    return likeData.count;
+  };
   };
 
   const formatDate = (dateString: string) => {
@@ -283,9 +306,16 @@ export default function ChannelPage() {
                     <span>{formatDate(article.publishedAt)}</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <button className="flex items-center gap-1.5 group">
-                      <span className="text-sm group-hover:scale-120 transition-transform">👍</span>
-                      <span className="text-[10px] font-bold text-gray-500">{Math.floor(Math.random() * 200)}</span>
+                    <button
+                      onClick={() => handleArticleLike(article.id)}
+                      className="flex items-center gap-1.5 group"
+                    >
+                      <span className="text-sm group-hover:scale-120 transition-transform" style={{ color: getArticleLikeData(article.id).liked ? '#00B4A0' : 'inherit' }}>
+                        {getArticleLikeData(article.id).liked ? '❤️' : '👍'}
+                      </span>
+                      <span className="text-[10px] font-bold" style={{ color: getArticleLikeData(article.id).liked ? '#00B4A0' : '#95A5A6' }}>
+                        {getTotalEngagement(article.id)}
+                      </span>
                     </button>
                     <button className="flex items-center gap-1.5 group">
                       <span className="text-sm group-hover:scale-120 transition-transform">💬</span>
