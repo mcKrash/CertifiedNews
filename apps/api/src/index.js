@@ -18,6 +18,9 @@ app.use('/api/articles', require('./routes/articles'));
 app.use('/api/votes', require('./routes/votes'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/bookmarks', require('./routes/bookmarks'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/search', require('./routes/search'));
+app.use('/api/trust', require('./routes/trust'));
 
 // Health check
 app.get('/api/health', (req, res) => {
