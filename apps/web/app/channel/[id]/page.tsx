@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { channels } from '@/lib/channels';
 import CommentSection from '@/components/CommentSection';
+import { ThumbsUpIcon, MessageCircleIcon, LinkChainIcon } from '@/lib/icons';
 
 export default function ChannelPage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function ChannelPage() {
   const [loading, setLoading] = useState(true);
   const [articleLikes, setArticleLikes] = useState<Record<string, { liked: boolean; count: number }>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
 
   // Check if user is following this channel (from localStorage)
   useEffect(() => {
@@ -344,7 +346,7 @@ export default function ChannelPage() {
                   </div>
                 </div>
                 {/* Comment Section */}
-                <CommentSection articleId={article.id} articleTitle={article.title} onCommentAdded={() => handleCommentAdded(article.id)} />
+                <CommentSection articleId={article.id} articleTitle={article.title} onCommentAdded={() => handleCommentAdded(article.id)} isExpanded={expandedComments[article.id] || false} onToggleExpand={(expanded) => setExpandedComments(prev => ({ ...prev, [article.id]: expanded }))} />
               </article>
             ))}
           </div>

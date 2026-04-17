@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { channels } from '@/lib/channels';
 import CommentSection from '@/components/CommentSection';
+import { ThumbsUpIcon, MessageCircleIcon, LinkChainIcon } from '@/lib/icons';
 
 export default function HomePage() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function HomePage() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [articleLikes, setArticleLikes] = useState<Record<string, { liked: boolean; count: number }>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const searchRef = useRef<HTMLDivElement>(null);
   
   // Post box state
@@ -656,25 +658,26 @@ export default function HomePage() {
                       onClick={() => handleArticleLike(article.id)}
                       className="flex items-center gap-1.5 group hover:scale-110 transition-transform"
                     >
-                      <span className="text-lg" style={{ color: getArticleLikeData(article.id).liked ? '#00B4A0' : '#95A5A6' }}>
-                        {getArticleLikeData(article.id).liked ? '❤️' : '👍'}
-                      </span>
+                      <ThumbsUpIcon filled={getArticleLikeData(article.id).liked} size={20} />
                       <span className="text-xs font-bold" style={{ color: getArticleLikeData(article.id).liked ? '#00B4A0' : '#95A5A6' }}>
                         {getTotalEngagement(article.id)}
                       </span>
                     </button>
-                    <button className="flex items-center gap-1.5 group hover:scale-110 transition-transform">
-                      <span className="text-lg">💭</span>
+                    <button
+                      onClick={() => setExpandedComments(prev => ({ ...prev, [article.id]: !prev[article.id] }))}
+                      className="flex items-center gap-1.5 group hover:scale-110 transition-transform"
+                    >
+                      <MessageCircleIcon size={20} />
                       <span className="text-xs font-bold" style={{ color: '#95A5A6' }}>{getCommentCount(article.id)}</span>
                     </button>
                     <button className="flex items-center gap-1.5 group hover:scale-110 transition-transform">
-                      <span className="text-lg">🔗</span>
+                      <LinkChainIcon size={20} />
                     </button>
                   </div>
                 </div>
 
                 {/* Comment Section */}
-                <CommentSection articleId={article.id} articleTitle={article.title} onCommentAdded={() => handleCommentAdded(article.id)} />
+                <CommentSection articleId={article.id} articleTitle={article.title} onCommentAdded={() => handleCommentAdded(article.id)} isExpanded={expandedComments[article.id] || false} onToggleExpand={(expanded) => setExpandedComments(prev => ({ ...prev, [article.id]: expanded }))} />
               </article>
             ))}
           </div>
