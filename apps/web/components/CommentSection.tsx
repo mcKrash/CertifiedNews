@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { checkContentViolation, recordViolation, isUserBanned, COMMUNITY_GUIDELINES } from '@/lib/moderation';
-import { CloseIcon, ReplyIcon } from '@/lib/icons';
+import { CloseIcon, ReplyIcon, ImageIcon, EmojiIcon, MoreIcon, SortIcon, ChatBubbleIcon, HeartIcon, ThumbsUpIcon } from '@/lib/icons';
 
 interface Comment {
   id: string;
@@ -281,7 +281,7 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
             onClick={() => handleLikeComment(comment.id)}
             className="hover:text-[#00B4A0] transition-colors flex items-center gap-1"
           >
-            <span>{comment.isLiked ? '❤️' : '👍'}</span>
+            <ThumbsUpIcon filled={comment.isLiked} size={16} />
             {comment.likes}
           </button>
           <button
@@ -349,7 +349,7 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
       {/* Comments Header */}
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: '#2C3E50' }}>
-          <span>💬</span>
+          <ChatBubbleIcon size={24} />
           <span>Comments</span>
           <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm font-bold">
             {comments.length}
@@ -411,17 +411,17 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
               />
               <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center gap-2">
-                  <button type="button" className="text-lg hover:text-[#00B4A0]" title="Link">
-                    🔗
+                  <button type="button" className="hover:text-[#00B4A0] transition-colors" title="Link">
+                    <LinkIcon size={20} />
                   </button>
-                  <button type="button" className="text-lg hover:text-[#00B4A0]" title="Image">
-                    🖼️
+                  <button type="button" className="hover:text-[#00B4A0] transition-colors" title="Image">
+                    <ImageIcon size={20} />
                   </button>
-                  <button type="button" className="text-lg hover:text-[#00B4A0]" title="Emoji">
-                    😊
+                  <button type="button" className="hover:text-[#00B4A0] transition-colors" title="Emoji">
+                    <EmojiIcon size={20} />
                   </button>
-                  <button type="button" className="text-lg hover:text-[#00B4A0]" title="More">
-                    ⋯
+                  <button type="button" className="hover:text-[#00B4A0] transition-colors" title="More">
+                    <MoreIcon size={20} />
                   </button>
                 </div>
                 <button
@@ -451,8 +451,9 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
       {/* Sort Options */}
       <div className="flex items-center justify-between mb-6">
         <div></div>
-        <button className="text-xs font-bold flex items-center gap-1" style={{ color: '#00B4A0' }}>
-          ↕️ Most Recent
+        <button className="text-xs font-bold flex items-center gap-2" style={{ color: '#00B4A0' }}>
+          <SortIcon size={16} />
+          Most Recent
         </button>
       </div>
 
@@ -505,3 +506,6 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
     </div>
   );
 }
+
+// Import LinkIcon from the icons library
+import { LinkIcon } from '@/lib/icons';
