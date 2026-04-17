@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const [emailOrUsername, setEmailOrUsername] = useState('');
@@ -47,10 +48,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">
-            <span style={{ color: '#00B4A0' }}>CERTIFIED</span>
-            <span style={{ color: '#2C3E50' }}> NEWS</span>
-          </h1>
+          <div className="flex justify-center mb-4">
+            <Image src="/logo.png" alt="WCNA Logo" width={60} height={60} className="rounded" />
+          </div>
+          <h1 className="text-2xl font-bold" style={{ color: '#2C3E50' }}>WCNA</h1>
+          <p className="text-xs mt-1" style={{ color: '#7F8C8D' }}>World Certified News Alliance</p>
         </div>
 
         {/* Welcome Section */}

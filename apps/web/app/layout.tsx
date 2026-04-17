@@ -11,8 +11,11 @@ const merriweather = Merriweather({
 });
 
 export const metadata: Metadata = {
-  title: "Certified News | Global Verified News Gateway",
-  description: "Every piece of news published here is certified, sourced, and traceable.",
+  title: "WCNA | World Certified News Alliance",
+  description: "The global gateway for verified, traceable, and sourced news. Every article is certified by the World Certified News Alliance.",
+  icons: {
+    icon: '/logo.png',
+  },
 };
 
 export default function RootLayout({
@@ -22,6 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/logo.png" />
+      </head>
       <body className={`${inter.variable} ${merriweather.variable} antialiased min-h-screen flex flex-col`}>
         <LayoutClient>
           {children}
