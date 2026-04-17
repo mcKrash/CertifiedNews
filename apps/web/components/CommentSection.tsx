@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { checkContentViolation, recordViolation, isUserBanned, COMMUNITY_GUIDELINES } from '@/lib/moderation';
-import { CloseIcon, ReplyIcon, ImageIcon, EmojiIcon, MoreIcon, SortIcon, ChatBubbleIcon, HeartIcon, ThumbsUpIcon } from '@/lib/icons';
+import { CloseIcon, ReplyIcon, ImageIcon, EmojiIcon, MoreIcon, SortIcon, ChatBubbleIcon, HeartIcon } from '@/lib/icons';
 
 interface Comment {
   id: string;
@@ -255,8 +255,12 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
     }
   };
 
-  const renderCommentThread = (comment: Comment, isReply: boolean = false) => (
+  const renderCommentThread = (comment: Comment, isReply: boolean = false, depth: number = 0) => (
     <div key={comment.id} className={`flex gap-3 ${isReply ? 'ml-8 lg:ml-12 border-l-2 pl-4' : ''}`} style={isReply ? { borderColor: '#E0E6ED' } : {}}>
+      {/* Enforce two-level reply limit */}
+      {depth >= 2 && isReply && (
+        <div className="text-xs text-gray-500 italic mt-2">Reply depth limit reached</div>
+      )}
       <div className="w-8 lg:w-10 h-8 lg:h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm lg:text-lg flex-shrink-0">
         {comment.userAvatar}
       </div>
@@ -281,20 +285,22 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
             onClick={() => handleLikeComment(comment.id)}
             className="hover:text-[#00B4A0] transition-colors flex items-center gap-1"
           >
-            <ThumbsUpIcon filled={comment.isLiked} size={16} />
+            <HeartIcon filled={comment.isLiked} size={16} />
             {comment.likes}
           </button>
-          <button
-            onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-            className="hover:text-[#00B4A0] transition-colors flex items-center gap-1"
-          >
-            <ReplyIcon size={16} />
-            {replyingTo === comment.id ? 'Cancel' : 'Reply'}
-          </button>
+          {depth < 2 && (
+            <button
+              onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+              className="hover:text-[#00B4A0] transition-colors flex items-center gap-1"
+            >
+              <ReplyIcon size={16} />
+              {replyingTo === comment.id ? 'Cancel' : 'Reply'}
+            </button>
+          )}
         </div>
 
-        {/* Reply Input */}
-        {replyingTo === comment.id && (
+        {/* Reply Input - Only show if depth < 2 */}
+        {replyingTo === comment.id && depth < 2 && (
           <form onSubmit={(e) => handleSubmitReply(e, comment.id)} className="mt-4">
             <div className="flex gap-2">
               <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm flex-shrink-0">
@@ -330,10 +336,10 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
           </form>
         )}
 
-        {/* Nested Replies */}
-        {comment.replies && comment.replies.length > 0 && (
+        {/* Nested Replies - Only show if depth < 2 */}
+        {comment.replies && comment.replies.length > 0 && depth < 2 && (
           <div className="mt-4 space-y-4">
-            {comment.replies.map(reply => renderCommentThread(reply, true))}
+            {comment.replies.map(reply => renderCommentThread(reply, true, depth + 1))}
           </div>
         )}
       </div>
@@ -465,9 +471,7 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
               No comments yet. Be the first to share your thoughts!
             </p>
           </div>
-        ) : (
-          comments.map(comment => renderCommentThread(comment))
-        )}
+                   {comments.map(comment => renderCommentThread(comment, false, 0))}     )}
       </div>
 
       {/* Guidelines Modal */}

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { channels } from '@/lib/channels';
 import CommentSection from '@/components/CommentSection';
-import { ThumbsUpIcon, MessageCircleIcon, LinkChainIcon } from '@/lib/icons';
+import { HeartIcon, MessageCircleIcon, LinkChainIcon } from '@/lib/icons';
 
 export default function ChannelPage() {
   const router = useRouter();

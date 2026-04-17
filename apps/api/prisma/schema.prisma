@@ -136,6 +136,7 @@ model Vote {
   userId    String
   articleId String?
   postId    String?
+  commentId String?
   type      VoteType  @default(LIKE)
   createdAt DateTime  @default(now())
 
@@ -143,12 +144,15 @@ model Vote {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   article   Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
   post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment   Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, articleId, type])
   @@unique([userId, postId, type])
+  @@unique([userId, commentId, type])
   @@index([userId])
   @@index([articleId])
   @@index([postId])
+  @@index([commentId])
 }
 
 model Comment {
