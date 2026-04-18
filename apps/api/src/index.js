@@ -22,6 +22,12 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/trust', require('./routes/trust'));
 app.use('/api/moderation', require('./routes/moderation'));
+app.use('/api/reporter-applications', require('./routes/reporterApplications'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/posts', require('./routes/posts'));
+app.use('/api/sources', require('./routes/sources'));
+app.use('/api/verification', require('./routes/verification'));
+app.use('/api/meta', require('./routes/meta'));
 
 // Health check
 app.get('/api/health', (req, res) => {

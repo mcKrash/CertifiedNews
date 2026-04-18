@@ -72,11 +72,17 @@ const getArticles = async (req, res) => {
 };
 
 /**
- * Get single article by ID
+ * Get single article by ID (increments view count)
  */
 const getArticleById = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Increment view count
+    await prisma.article.update({
+      where: { id },
+      data: { viewCount: { increment: 1 } },
+    });
 
     const article = await prisma.article.findUnique({
       where: { id },

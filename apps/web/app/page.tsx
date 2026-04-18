@@ -3,44 +3,42 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { loginUser } from '@/lib/auth';
 
 export default function LoginPage() {
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
-    // Single-click bypass: Store dummy session and redirect to home immediately
-    const dummyUser = {
-      id: 1,
-      username: emailOrUsername || 'admin',
-      email: emailOrUsername.includes('@') ? emailOrUsername : 'admin@certifiednews.local',
-      role: 'admin',
-      trustScore: 1000
-    };
-
-    localStorage.setItem('token', 'dummy-bypass-token-' + Date.now());
-    localStorage.setItem('user', JSON.stringify(dummyUser));
-    
-    // Immediate redirect to main feed
-    window.location.href = '/home';
+    try {
+      // Call real API login
+      await loginUser(emailOrUsername, password);
+      // Redirect to home on success
+      window.location.href = '/home';
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please try again.');
+      setLoading(false);
+    }
   };
 
-  const handleBypass = () => {
+  const handleDemoLogin = async () => {
     setLoading(true);
-    const dummyUser = {
-      id: 1,
-      username: 'admin',
-      email: 'admin@certifiednews.local',
-      role: 'admin',
-      trustScore: 1000
-    };
-    localStorage.setItem('token', 'dummy-bypass-token-' + Date.now());
-    localStorage.setItem('user', JSON.stringify(dummyUser));
-    window.location.href = '/home';
+    setError('');
+
+    try {
+      // Use demo credentials
+      await loginUser('demo@certifiednews.local', 'demo123');
+      window.location.href = '/home';
+    } catch (err: any) {
+      setError('Demo login failed. Please use your own credentials.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -129,15 +127,23 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Google Login (Also acts as bypass) */}
+        {/* Error Message */}
+        {error && (
+          <div className="p-3 rounded-md text-red-600 text-sm" style={{ backgroundColor: '#FFE5E5' }}>
+            {error}
+          </div>
+        )}
+
+        {/* Demo Login */}
         <button
           type="button"
-          onClick={handleBypass}
-          className="w-full px-4 py-3 border rounded-md font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
+          onClick={handleDemoLogin}
+          disabled={loading}
+          className="w-full px-4 py-3 border rounded-md font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors disabled:opacity-50"
           style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
         >
-          <span>🔍</span>
-          Sign in with Google
+          <span>👤</span>
+          {loading ? 'Signing in...' : 'Try Demo Account'}
         </button>
 
         {/* Sign Up Link */}

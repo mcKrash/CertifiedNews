@@ -32,6 +32,7 @@ model User {
   bookmarks     Bookmark[]
   notifications Notification[]
   posts         Post[]
+  reporterApplication ReporterApplication?
 
   @@index([email])
   @@index([role])
@@ -86,6 +87,7 @@ model Article {
   authorId      String?
   status        ArticleStatus @default(PENDING)
   trustScore    Int       @default(0)
+  viewCount     Int       @default(0)
   verifiedAt    DateTime?
   publishedAt   DateTime  @default(now())
   createdAt     DateTime  @default(now())
@@ -252,4 +254,32 @@ enum NotificationType {
   POST_APPROVED
   SYSTEM_ALERT
   NEW_FOLLOWER
+}
+
+model ReporterApplication {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  status        ApplicationStatus @default(PENDING)
+  bio           String?
+  experience    String?
+  portfolio     String?
+  reason        String?
+  submittedAt   DateTime  @default(now())
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  reviewNotes   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
