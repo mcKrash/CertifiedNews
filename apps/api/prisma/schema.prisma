@@ -6,276 +6,154 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id            String     @id @default(cuid())
-  email         String     @unique
-  name          String?
-  password      String?
-  avatar        String?
-  bio           String?
-  role          UserRole   @default(USER)
-  isVerified    Boolean    @default(false)
-  isBanned      Boolean    @default(false)
-  banReason     String?
-  banExpiresAt  DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-
-  // Relations
-  articles      Article[]
-  votes         Vote[]
-  comments      Comment[]
-  bookmarks     Bookmark[]
-  notifications Notification[]
-  posts         Post[]
+  id                  String               @id @default(uuid())
+  email               String               @unique
+  username            String               @unique
+  password            String
+  name                String
+  role                Role                 @default(USER)
+  isVerified          Boolean              @default(false)
+  isBanned            Boolean              @default(false)
+  banReason           String?
+  banExpiresAt        DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  articles            Article[]
+  posts               Post[]
+  votes               Vote[]
+  comments            Comment[]
+  bookmarks           Bookmark[]
+  notifications       Notification[]
   reporterApplication ReporterApplication?
-
-  @@index([email])
-  @@index([role])
-  @@index([isBanned])
 }
 
-model Category {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  slug      String    @unique
-  description String?
-  icon      String?
-  color     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  // Relations
-  articles  Article[]
-  posts     Post[]
-
-  @@index([slug])
-}
-
-model Source {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  domain      String    @unique
-  url         String
-  logo        String?
-  description String?
-  isVerified  Boolean   @default(false)
-  trustScore  Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  // Relations
-  articles    Article[]
-
-  @@index([domain])
-  @@index([isVerified])
-  @@index([trustScore])
-}
-
-model Article {
-  id            String    @id @default(cuid())
-  title         String
-  body          String
-  excerpt       String?
-  imageUrl      String?
-  sourceId      String
-  categoryId    String
-  authorId      String?
-  status        ArticleStatus @default(PENDING)
-  trustScore    Int       @default(0)
-  viewCount     Int       @default(0)
-  verifiedAt    DateTime?
-  publishedAt   DateTime  @default(now())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  source        Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  category      Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  author        User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  votes         Vote[]
-  comments      Comment[]
-  bookmarks     Bookmark[]
-
-  @@index([sourceId])
-  @@index([categoryId])
-  @@index([authorId])
-  @@index([status])
-  @@index([publishedAt])
-  @@index([trustScore])
-}
-
-model Post {
-  id            String    @id @default(cuid())
-  content       String
-  imageUrl      String?
-  authorId      String
-  categoryId    String
-  status        PostStatus @default(PENDING)
-  sourceUrl     String?
-  sourceDomain  String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  category      Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  votes         Vote[]
-  comments      Comment[]
-
-  @@index([authorId])
-  @@index([categoryId])
-  @@index([status])
-  @@index([createdAt])
-}
-
-model Vote {
-  id        String    @id @default(cuid())
-  userId    String
-  articleId String?
-  postId    String?
-  commentId String?
-  type      VoteType  @default(LIKE)
-  createdAt DateTime  @default(now())
-
-  // Relations
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article   Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  comment   Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, articleId, type])
-  @@unique([userId, postId, type])
-  @@unique([userId, commentId, type])
-  @@index([userId])
-  @@index([articleId])
-  @@index([postId])
-  @@index([commentId])
-}
-
-model Comment {
-  id        String    @id @default(cuid())
-  content   String
-  userId    String
-  articleId String?
-  postId    String?
-  parentId  String?
-  status    CommentStatus @default(APPROVED)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  // Relations
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article   Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   Comment[] @relation("CommentReplies")
-  votes     Vote[]
-
-  @@index([userId])
-  @@index([articleId])
-  @@index([postId])
-  @@index([parentId])
-  @@index([status])
-}
-
-model Bookmark {
-  id        String    @id @default(cuid())
-  userId    String
-  articleId String
-  createdAt DateTime  @default(now())
-
-  // Relations
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article   Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, articleId])
-  @@index([userId])
-  @@index([articleId])
-}
-
-model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  type      NotificationType
-  title     String
-  message   String
-  relatedId String?
-  isRead    Boolean   @default(false)
-  createdAt DateTime  @default(now())
-
-  // Relations
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([isRead])
-  @@index([createdAt])
-}
-
-// Enums
-enum UserRole {
+enum Role {
   USER
   REPORTER
   ADMIN
 }
 
-enum ArticleStatus {
-  PENDING
-  VERIFIED
-  REJECTED
-  UNDER_REVIEW
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  slug      String    @unique
+  articles  Article[]
 }
 
-enum PostStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  UNDER_REVIEW
+model Source {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  url       String
+  logo      String?
+  articles  Article[]
 }
 
-enum VoteType {
-  LIKE
-  DISLIKE
+model Article {
+  id          String    @id @default(uuid())
+  title       String
+  body        String    @db.Text
+  sourceId    Int
+  sourceName  String
+  categoryId  Int
+  status      String    @default("pending") // pending, verified, rejected
+  publishedAt DateTime  @default(now())
+  viewCount   Int       @default(0)
+  authorId    String?
+  author      User?     @relation(fields: [authorId], references: [id])
+  category    Category  @relation(fields: [categoryId], references: [id])
+  source      Source    @relation(fields: [sourceId], references: [id])
+  votes       Vote[]
+  comments    Comment[]
+  bookmarks   Bookmark[]
 }
 
-enum CommentStatus {
-  APPROVED
-  PENDING
-  REJECTED
+model Post {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  sourceUrl String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  status    String   @default("pending") // pending, verified, rejected
+  createdAt DateTime @default(now())
 }
 
-enum NotificationType {
-  COMMENT_REPLY
-  ARTICLE_VERIFIED
-  POST_APPROVED
-  SYSTEM_ALERT
-  NEW_FOLLOWER
+model Vote {
+  id        String   @id @default(uuid())
+  type      String   // up, down
+  userId    String
+  articleId String
+  user      User     @relation(fields: [userId], references: [id])
+  article   Article  @relation(fields: [articleId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, articleId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  userId    String
+  articleId String
+  user      User     @relation(fields: [userId], references: [id])
+  article   Article  @relation(fields: [articleId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  articleId String
+  user      User     @relation(fields: [userId], references: [id])
+  article   Article  @relation(fields: [articleId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, articleId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // SYSTEM, ARTICLE_VERIFIED, COMMENT_REPLY
+  title     String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model SupportTicket {
+  id          String   @id @default(uuid())
+  userId      String?
+  email       String
+  subject     String
+  description String   @db.Text
+  category    String   @default("technical_issue")
+  priority    String   @default("normal")
+  articleUrl  String?
+  status      String   @default("OPEN") // OPEN, IN_PROGRESS, CLOSED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ReporterApplication {
-  id            String    @id @default(cuid())
-  userId        String    @unique
-  status        ApplicationStatus @default(PENDING)
-  bio           String?
-  experience    String?
-  portfolio     String?
-  reason        String?
-  submittedAt   DateTime  @default(now())
-  reviewedAt    DateTime?
-  reviewedBy    String?
-  reviewNotes   String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([status])
+  id          String            @id @default(uuid())
+  userId      String            @unique
+  user        User              @relation(fields: [userId], references: [id])
+  bio         String            @db.Text
+  experience  String            @db.Text
+  portfolio   String            @db.Text
+  reason      String            @db.Text
+  status      ApplicationStatus @default(PENDING)
+  reviewedBy  String?
+  reviewNotes String?           @db.Text
+  submittedAt DateTime          @default(now())
+  reviewedAt  DateTime?
 }
 
 enum ApplicationStatus {

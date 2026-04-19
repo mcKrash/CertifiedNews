@@ -45,60 +45,78 @@ export default function SupportPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    const storedTickets = localStorage.getItem('wcna_support_tickets');
 
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setEmail(parsedUser.email || '');
     }
-
-    if (storedTickets) {
-      setTickets(JSON.parse(storedTickets));
-    }
   }, []);
 
   const recentTickets = useMemo(() => tickets.slice(0, 5), [tickets]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
+    setSubmitting(true);
 
     if (!email || !subject.trim() || !description.trim()) {
       setErrorMessage('Please complete your email, subject, and issue details before submitting.');
+      setSubmitting(false);
       return;
     }
 
     const moderationCheck = checkContentViolation(`${subject}\n${description}`);
     if (moderationCheck.isViolating) {
       setErrorMessage(moderationCheck.reason || 'Your message could not be submitted because it violates platform guidelines.');
+      setSubmitting(false);
       return;
     }
 
-    const newTicket: SupportTicket = {
-      id: `WCNA-${Date.now().toString().slice(-6)}`,
-      category,
-      priority,
-      subject: subject.trim(),
-      description: description.trim(),
-      email: email.trim(),
-      articleUrl: articleUrl.trim(),
-      status: priority === 'urgent' ? 'In Review' : 'Open',
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const token = localStorage.getItem('token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-    const updatedTickets = [newTicket, ...tickets];
-    localStorage.setItem('wcna_support_tickets', JSON.stringify(updatedTickets));
-    setTickets(updatedTickets);
-    setSubject('');
-    setDescription('');
-    setArticleUrl('');
-    setPriority('normal');
-    setCategory('technical_issue');
-    setSuccessMessage(`Your issue has been submitted successfully. Reference: ${newTicket.id}`);
+      const res = await fetch(`${API_URL}/support`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+        body: JSON.stringify({
+          category,
+          priority,
+          subject: subject.trim(),
+          description: description.trim(),
+          email: email.trim(),
+          articleUrl: articleUrl.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        setErrorMessage(error.message || 'Failed to submit support ticket');
+        setSubmitting(false);
+        return;
+      }
+
+      const data = await res.json();
+      setSuccessMessage('Support ticket submitted successfully. We will review it shortly.');
+      setSubject('');
+      setDescription('');
+      setArticleUrl('');
+      setPriority('normal');
+      setCategory('technical_issue');
+      setSubmitting(false);
+    } catch (error) {
+      console.error('Error submitting support ticket:', error);
+      setErrorMessage('Failed to submit support ticket. Please try again.');
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -109,176 +127,199 @@ export default function SupportPage() {
             <Image src="/logo.png" alt="WCNA Logo" width={48} height={48} className="rounded" />
             <span className="text-2xl font-bold tracking-tight" style={{ color: '#2C3E50' }}>WCNA</span>
           </Link>
-          <button
-            onClick={() => router.push('/home')}
-            className="px-4 py-2 rounded-md text-sm font-semibold text-white"
-            style={{ backgroundColor: '#00B4A0' }}
-          >
-            Back to Feed
-          </button>
+          <Link href="/home" className="text-sm font-semibold" style={{ color: '#00B4A0' }}>
+            Back to Home
+          </Link>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-10">
-        <div className="bg-white rounded-2xl border shadow-sm p-8 mb-8" style={{ borderColor: '#E0E6ED' }}>
-          <div className="flex items-start gap-4 mb-6">
-            <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#E8F8F5' }}>
-              <SupportIcon size={28} />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold mb-2" style={{ color: '#2C3E50' }}>Contact Customer Care</h1>
-              <p className="text-sm leading-relaxed max-w-2xl" style={{ color: '#7F8C8D' }}>
-                Use this page to report platform issues, account problems, moderation concerns, or verification questions. Every submission is screened against WCNA safety standards before it is recorded.
+      <main className="max-w-5xl mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Support Form */}
+          <div className="lg:col-span-2">
+            <div className="rounded-lg border p-6 bg-white" style={{ borderColor: '#E0E6ED' }}>
+              <h1 className="text-3xl font-bold mb-2" style={{ color: '#2C3E50' }}>
+                Contact Support
+              </h1>
+              <p className="mb-6" style={{ color: '#7F8C8D' }}>
+                Have an issue? Let us know and we'll help you resolve it as quickly as possible.
               </p>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-8">
-            <div className="rounded-xl p-4" style={{ backgroundColor: '#F8FAFC' }}>
-              <p className="font-bold mb-1" style={{ color: '#2C3E50' }}>Response Logic</p>
-              <p style={{ color: '#7F8C8D' }}>Urgent and abuse-related issues are marked for immediate review.</p>
-            </div>
-            <div className="rounded-xl p-4" style={{ backgroundColor: '#F8FAFC' }}>
-              <p className="font-bold mb-1" style={{ color: '#2C3E50' }}>Safety Screening</p>
-              <p style={{ color: '#7F8C8D' }}>Messages containing harassment, hate speech, or spam are automatically blocked.</p>
-            </div>
-            <div className="rounded-xl p-4" style={{ backgroundColor: '#F8FAFC' }}>
-              <p className="font-bold mb-1" style={{ color: '#2C3E50' }}>Ticket Tracking</p>
-              <p style={{ color: '#7F8C8D' }}>Each issue receives a reference ID so it can be followed internally.</p>
-            </div>
-          </div>
-
-          {errorMessage && (
-            <div className="mb-4 rounded-lg px-4 py-3 text-sm font-medium" style={{ backgroundColor: '#FDECEC', color: '#C0392B' }}>
-              {errorMessage}
-            </div>
-          )}
-
-          {successMessage && (
-            <div className="mb-4 rounded-lg px-4 py-3 text-sm font-medium" style={{ backgroundColor: '#E8F8F5', color: '#00B4A0' }}>
-              {successMessage}
-            </div>
-          )}
-
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>Contact email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 border rounded-xl focus:outline-none"
-                  style={{ borderColor: '#E0E6ED' }}
-                  placeholder="you@wcna.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>Issue category</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-3 border rounded-xl focus:outline-none"
-                  style={{ borderColor: '#E0E6ED' }}
-                >
-                  {ISSUE_CATEGORIES.map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>Priority level</label>
-                <select
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  className="w-full px-4 py-3 border rounded-xl focus:outline-none"
-                  style={{ borderColor: '#E0E6ED' }}
-                >
-                  {PRIORITIES.map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>Related article or page URL</label>
-                <input
-                  type="text"
-                  value={articleUrl}
-                  onChange={(e) => setArticleUrl(e.target.value)}
-                  className="w-full px-4 py-3 border rounded-xl focus:outline-none"
-                  style={{ borderColor: '#E0E6ED' }}
-                  placeholder="Optional reference link"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>Subject</label>
-              <input
-                type="text"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="w-full px-4 py-3 border rounded-xl focus:outline-none"
-                style={{ borderColor: '#E0E6ED' }}
-                placeholder="Summarize the issue clearly"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>Issue details</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={7}
-                className="w-full px-4 py-3 border rounded-xl focus:outline-none"
-                style={{ borderColor: '#E0E6ED' }}
-                placeholder="Describe what happened, what page was affected, and what outcome you expect."
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-4 flex-col sm:flex-row">
-              <p className="text-xs" style={{ color: '#7F8C8D' }}>
-                Submissions are stored locally for this demo and aligned with WCNA moderation rules.
-              </p>
-              <button
-                type="submit"
-                className="px-6 py-3 rounded-xl font-bold text-white"
-                style={{ backgroundColor: '#00B4A0' }}
-              >
-                Submit Issue
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <div className="bg-white rounded-2xl border shadow-sm p-8" style={{ borderColor: '#E0E6ED' }}>
-          <h2 className="text-2xl font-bold mb-5" style={{ color: '#2C3E50' }}>Recent Support Requests</h2>
-          {recentTickets.length === 0 ? (
-            <p className="text-sm" style={{ color: '#7F8C8D' }}>
-              No issues have been submitted from this browser yet.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {recentTickets.map((ticket) => (
-                <div key={ticket.id} className="rounded-xl border p-4" style={{ borderColor: '#E0E6ED' }}>
-                  <div className="flex items-start justify-between gap-4 flex-col sm:flex-row">
-                    <div>
-                      <p className="text-sm font-bold" style={{ color: '#2C3E50' }}>{ticket.subject}</p>
-                      <p className="text-xs mt-1" style={{ color: '#7F8C8D' }}>
-                        {ticket.id} • {ticket.category.replace(/_/g, ' ')} • {new Date(ticket.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold" style={{ backgroundColor: '#E8F8F5', color: '#00B4A0' }}>
-                      {ticket.status}
-                    </span>
-                  </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-0"
+                    style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = '#00B4A0')}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = '#E0E6ED')}
+                  />
                 </div>
-              ))}
+
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>
+                    Issue Category
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-0"
+                    style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = '#00B4A0')}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = '#E0E6ED')}
+                  >
+                    {ISSUE_CATEGORIES.map((cat) => (
+                      <option key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>
+                    Priority
+                  </label>
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-0"
+                    style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = '#00B4A0')}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = '#E0E6ED')}
+                  >
+                    {PRIORITIES.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Subject */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>
+                    Subject
+                  </label>
+                  <input
+                    type="text"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="Brief description of your issue"
+                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-0"
+                    style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = '#00B4A0')}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = '#E0E6ED')}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>
+                    Description
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Please provide detailed information about your issue..."
+                    rows={5}
+                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-0 resize-none"
+                    style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = '#00B4A0')}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = '#E0E6ED')}
+                  />
+                </div>
+
+                {/* Article URL (Optional) */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#2C3E50' }}>
+                    Related Article URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={articleUrl}
+                    onChange={(e) => setArticleUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-0"
+                    style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = '#00B4A0')}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = '#E0E6ED')}
+                  />
+                </div>
+
+                {/* Error Message */}
+                {errorMessage && (
+                  <div className="p-3 rounded-md text-red-600 text-sm" style={{ backgroundColor: '#FFE5E5' }}>
+                    {errorMessage}
+                  </div>
+                )}
+
+                {/* Success Message */}
+                {successMessage && (
+                  <div className="p-3 rounded-md text-green-600 text-sm" style={{ backgroundColor: '#E8F8F5' }}>
+                    {successMessage}
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-3 rounded-md font-semibold text-white transition-opacity"
+                  style={{
+                    backgroundColor: '#00B4A0',
+                    opacity: submitting ? 0.7 : 1,
+                  }}
+                >
+                  {submitting ? 'Submitting...' : 'Submit Support Ticket'}
+                </button>
+              </form>
             </div>
-          )}
+          </div>
+
+          {/* FAQ / Info Section */}
+          <div className="lg:col-span-1">
+            <div className="rounded-lg border p-6 bg-white" style={{ borderColor: '#E0E6ED' }}>
+              <h2 className="text-xl font-bold mb-4" style={{ color: '#2C3E50' }}>
+                Quick Help
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2" style={{ color: '#2C3E50' }}>
+                    Response Time
+                  </h3>
+                  <p style={{ color: '#7F8C8D', fontSize: '14px' }}>
+                    We typically respond to support tickets within 24-48 hours.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2" style={{ color: '#2C3E50' }}>
+                    Urgent Issues
+                  </h3>
+                  <p style={{ color: '#7F8C8D', fontSize: '14px' }}>
+                    Mark your ticket as "Urgent" for priority handling.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2" style={{ color: '#2C3E50' }}>
+                    Account Access
+                  </h3>
+                  <p style={{ color: '#7F8C8D', fontSize: '14px' }}>
+                    If you cannot log in, select "Account access" as your category.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>

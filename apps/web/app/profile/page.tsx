@@ -1,5 +1,7 @@
 'use client';
 
+
+
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,24 +15,31 @@ export default function ProfilePage() {
   const [editedBio, setEditedBio] = useState('');
 
   useEffect(() => {
-    // Fetch current user data (using mock data for demo)
     const fetchUserProfile = async () => {
       try {
-        // In production, this would fetch from the API
-        // For now, we'll use the admin user as default
-        const mockUser = {
-          id: 1,
-          username: 'admin',
-          email: 'admin@certifiednews.local',
-          role: 'admin',
-          trustScore: 1000,
-          bio: 'Senior Editor and Fact-Checker at WCNA. Dedicated to ensuring accuracy and integrity in journalism.',
-          interests: ['Investigative Journalism', 'Climate Change', 'Technology', 'Politics'],
-          joinedAt: '2025-01-15T10:00:00.000Z',
-          avatarUrl: null,
-        };
-        setUser(mockUser);
-        setEditedBio(mockUser.bio);
+        const token = localStorage.getItem('token');
+        if (!token) {
+          router.push('/');
+          return;
+        }
+
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const res = await fetch(`${API_URL}/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!res.ok) {
+          router.push('/');
+          return;
+        }
+
+        const data = await res.json();
+        const userData = data.data || data;
+        setUser(userData);
+        setEditedBio(userData.bio || '');
         setLoading(false);
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -39,18 +48,43 @@ export default function ProfilePage() {
     };
 
     fetchUserProfile();
-  }, []);
+  }, [router]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     router.push('/');
   };
 
-  const handleSaveBio = () => {
-    if (user) {
+  const handleSaveBio = async () => {
+    if (!user) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      
+      const res = await fetch(`${API_URL}/users/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bio: editedBio }),
+      });
+
+      if (!res.ok) {
+        alert('Failed to update bio');
+        return;
+      }
+
+      const data = await res.json();
       setUser({ ...user, bio: editedBio });
       setIsEditing(false);
       alert('Bio updated successfully!');
+    } catch (error) {
+      console.error('Error saving bio:', error);
+      alert('Failed to update bio');
     }
   };
 
@@ -77,9 +111,14 @@ export default function ProfilePage() {
   const getRoleColor = (role) => {
     switch (role) {
       case 'admin':
+      case 'ADMIN':
         return '#E74C3C';
+      case 'reporter':
+      case 'REPORTER':
       case 'verified_reporter':
         return '#00B4A0';
+      case 'user':
+      case 'USER':
       case 'member':
         return '#3498DB';
       default:
@@ -90,9 +129,14 @@ export default function ProfilePage() {
   const getRoleLabel = (role) => {
     switch (role) {
       case 'admin':
+      case 'ADMIN':
         return 'Administrator';
+      case 'reporter':
+      case 'REPORTER':
       case 'verified_reporter':
         return 'Verified Reporter';
+      case 'user':
+      case 'USER':
       case 'member':
         return 'Community Member';
       default:

@@ -8,7 +8,10 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -28,6 +31,8 @@ app.use('/api/posts', require('./routes/posts'));
 app.use('/api/sources', require('./routes/sources'));
 app.use('/api/verification', require('./routes/verification'));
 app.use('/api/meta', require('./routes/meta'));
+app.use('/api/support', require('./routes/support'));
+app.use('/api/admin/ai', require('./routes/adminAI'));
 
 // Health check
 app.get('/api/health', (req, res) => {

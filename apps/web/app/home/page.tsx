@@ -200,19 +200,46 @@ export default function HomePage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handlePostSubmit = (e: React.FormEvent) => {
+  const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!postTitle || !postContent) return;
     
     setIsPosting(true);
-    setTimeout(() => {
+    try {
+      const token = localStorage.getItem('token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      
+      const res = await fetch(`${API_URL}/posts`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: postTitle,
+          content: postContent,
+          sourceUrl: postSourceUrl,
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        alert(`Failed to submit post: ${error.message || 'Unknown error'}`);
+        setIsPosting(false);
+        return;
+      }
+
       alert('Post submitted for verification!');
       setPostTitle('');
       setPostContent('');
       setPostSourceUrl('');
       setIsPosting(false);
       setShowPostBox(false);
-    }, 1000);
+    } catch (error) {
+      console.error('Error submitting post:', error);
+      alert('Failed to submit post. Please try again.');
+      setIsPosting(false);
+    }
   };
 
   const closePostBox = () => {
@@ -235,17 +262,41 @@ export default function HomePage() {
     setShowMobileMenu(false);
   };
 
-  const handleArticleLike = (articleId: string) => {
-    setArticleLikes(prev => {
-      const current = prev[articleId] || { liked: false, count: Math.floor(Math.random() * 200) };
-      return {
-        ...prev,
-        [articleId]: {
-          liked: !current.liked,
-          count: current.liked ? current.count - 1 : current.count + 1,
+  const handleArticleLike = async (articleId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      
+      const res = await fetch(`${API_URL}/votes`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-      };
-    });
+        body: JSON.stringify({
+          articleId,
+          type: 'LIKE',
+        }),
+      });
+
+      if (!res.ok) {
+        console.error('Failed to toggle like');
+        return;
+      }
+
+      setArticleLikes(prev => {
+        const current = prev[articleId] || { liked: false, count: Math.floor(Math.random() * 200) };
+        return {
+          ...prev,
+          [articleId]: {
+            liked: !current.liked,
+            count: current.liked ? current.count - 1 : current.count + 1,
+          },
+        };
+      });
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    }
   };
 
   const getArticleLikeData = (articleId: string) => {
@@ -700,9 +751,11 @@ export default function HomePage() {
                       <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#00B4A0' }}>
                         {getCategoryName(article.categoryId)}
                       </p>
-                      <h3 className="text-base lg:text-lg font-bold mt-1 leading-tight" style={{ color: '#2C3E50' }}>
-                        {article.title}
-                      </h3>
+                      <Link href={`/article/${article.id}`}>
+                        <h3 className="text-base lg:text-lg font-bold mt-1 leading-tight hover:text-[#00B4A0] transition-colors cursor-pointer" style={{ color: '#2C3E50' }}>
+                          {article.title}
+                        </h3>
+                      </Link>
                     </div>
                   </div>
                   <div
