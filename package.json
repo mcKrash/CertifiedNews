@@ -3,8 +3,11 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
     "build": "turbo run build",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "install:all": "pnpm install --force && pnpm --filter api exec prisma generate"
   },
   "devDependencies": {
     "turbo": "latest"
