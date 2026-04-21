@@ -9,8 +9,6 @@
   "devDependencies": {
     "turbo": "latest"
   },
-  "workspaces": [
-    "apps/*"
-  ],
-  "packageManager": "npm@10.2.4"
+
+  "packageManager": "pnpm@8.0.0"
 }
