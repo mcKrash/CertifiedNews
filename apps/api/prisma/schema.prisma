@@ -11,31 +11,130 @@ datasource db {
 }
 
 model User {
-  id                  String               @id @default(uuid())
-  email               String               @unique
-  username            String               @unique
-  password            String
-  name                String
-  role                Role                 @default(USER)
-  isVerified          Boolean              @default(false)
-  isBanned            Boolean              @default(false)
-  banReason           String?
-  banExpiresAt        DateTime?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  articles            Article[]
-  posts               Post[]
-  votes               Vote[]
-  comments            Comment[]
-  bookmarks           Bookmark[]
-  notifications       Notification[]
-  reporterApplication ReporterApplication?
+  id                    String               @id @default(uuid())
+  email                 String               @unique
+  username              String               @unique
+  password              String
+  name                  String
+  role                  Role                 @default(USER)
+  userType              UserType             @default(REGULAR_USER)
+  isVerified            Boolean              @default(false)
+  emailVerified         Boolean              @default(false)
+  isBanned              Boolean              @default(false)
+  banReason             String?
+  banExpiresAt          DateTime?
+  bio                   String?              @db.Text
+  avatarUrl             String?
+  profilePhotoUrl       String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  
+  // Onboarding preferences
+  preferences           UserPreferences?
+  
+  // Journalist-specific fields
+  journalistProfile     JournalistProfile?
+  
+  // Agency-specific fields
+  agencyProfile         AgencyProfile?
+  
+  // Relationships
+  articles              Article[]
+  posts                 Post[]
+  votes                 Vote[]
+  comments              Comment[]
+  bookmarks             Bookmark[]
+  notifications         Notification[]
+  reporterApplication   ReporterApplication?
+  
+  // Follow relationships
+  followers             Follow[]             @relation("follower")
+  following             Follow[]             @relation("following")
 }
 
 enum Role {
   USER
   REPORTER
   ADMIN
+}
+
+enum UserType {
+  REGULAR_USER
+  JOURNALIST
+  AGENCY
+}
+
+model UserPreferences {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicsOfInterest  String[] @default([])
+  preferredLanguage String   @default("en")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model JournalistProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beat              String?
+  affiliatedOrg     String?
+  portfolioUrl      String?
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedAt        DateTime?
+  verifiedBy        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model AgencyProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationName  String
+  website           String
+  country           String
+  agencyType        String   // Newspaper, TV, Digital, Wire Service, Magazine
+  registrationNumber String?
+  primaryContactName String
+  primaryContactEmail String
+  logoUrl           String?
+  description       String?  @db.Text
+  socialHandles     SocialHandles?
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedAt        DateTime?
+  verifiedBy        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model SocialHandles {
+  id                String   @id @default(uuid())
+  agencyProfileId   String   @unique
+  agencyProfile     AgencyProfile @relation(fields: [agencyProfileId], references: [id], onDelete: Cascade)
+  twitter           String?
+  facebook          String?
+  instagram         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
 }
 
 model Category {
@@ -73,44 +172,60 @@ model Article {
 }
 
 model Post {
-  id        String   @id @default(uuid())
-  title     String
-  content   String   @db.Text
-  sourceUrl String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  status    String   @default("pending") // pending, verified, rejected
-  createdAt DateTime @default(now())
+  id          String    @id @default(uuid())
+  title       String?
+  content     String    @db.Text
+  sourceUrl   String?
+  imageUrl    String?
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      String    @default("pending") // pending, verified, rejected
+  likes       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relationships for engagement
+  votes       Vote[]
+  comments    Comment[]
 }
 
 model Vote {
   id        String   @id @default(uuid())
-  type      String   // up, down
+  type      String   // up, down, like
   userId    String
-  articleId String
-  user      User     @relation(fields: [userId], references: [id])
-  article   Article  @relation(fields: [articleId], references: [id])
+  articleId String?
+  postId    String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([userId, articleId])
+  @@unique([userId, postId])
 }
 
 model Comment {
-  id        String   @id @default(uuid())
-  content   String   @db.Text
+  id        String    @id @default(uuid())
+  content   String    @db.Text
   userId    String
-  articleId String
-  user      User     @relation(fields: [userId], references: [id])
-  article   Article  @relation(fields: [articleId], references: [id])
-  createdAt DateTime @default(now())
+  articleId String?
+  postId    String?
+  parentId  String?   // For threaded comments
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article   Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("replies")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Bookmark {
   id        String   @id @default(uuid())
   userId    String
   articleId String
-  user      User     @relation(fields: [userId], references: [id])
-  article   Article  @relation(fields: [articleId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([userId, articleId])
@@ -119,7 +234,7 @@ model Bookmark {
 model Notification {
   id        String   @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String   // SYSTEM, ARTICLE_VERIFIED, COMMENT_REPLY
   title     String
   message   String   @db.Text
@@ -144,7 +259,7 @@ model SupportTicket {
 model ReporterApplication {
   id          String            @id @default(uuid())
   userId      String            @unique
-  user        User              @relation(fields: [userId], references: [id])
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   bio         String            @db.Text
   experience  String            @db.Text
   portfolio   String            @db.Text
@@ -160,4 +275,16 @@ enum ApplicationStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model BreakingNews {
+  id          String   @id @default(uuid())
+  title       String
+  content     String   @db.Text
+  sourceUrl   String?
+  imageUrl    String?
+  priority    Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
