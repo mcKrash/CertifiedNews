@@ -7,45 +7,44 @@ const prisma = new PrismaClient();
  */
 const toggleBookmark = async (req, res) => {
   try {
-    const { articleId } = req.body;
+    const { articleId, postId } = req.body;
     const userId = req.user.id;
 
-    if (!articleId) {
+    // Support both articles and posts
+    const bookmarkKey = postId ? 'postId' : 'articleId';
+    const bookmarkValue = postId || articleId;
+
+    if (!bookmarkValue) {
       return res.status(400).json({
         success: false,
-        message: 'articleId is required',
+        message: 'articleId or postId is required',
       });
     }
 
     // Check if bookmark already exists
+    const whereClause = {};
+    whereClause[`userId_${bookmarkKey}`] = {
+      userId,
+      [bookmarkKey]: bookmarkValue,
+    };
+
     const existingBookmark = await prisma.bookmark.findUnique({
-      where: {
-        userId_articleId: {
-          userId,
-          articleId,
-        },
-      },
+      where: whereClause,
     });
 
     let bookmark;
     if (existingBookmark) {
       // Remove bookmark if it exists
       await prisma.bookmark.delete({
-        where: {
-          userId_articleId: {
-            userId,
-            articleId,
-          },
-        },
+        where: whereClause,
       });
       bookmark = null;
     } else {
       // Create new bookmark
+      const createData = { userId };
+      createData[bookmarkKey] = bookmarkValue;
       bookmark = await prisma.bookmark.create({
-        data: {
-          userId,
-          articleId,
-        },
+        data: createData,
       });
     }
 
