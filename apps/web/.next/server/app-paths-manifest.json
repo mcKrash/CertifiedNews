@@ -1,1 +1,14 @@
-{}
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/api/articles/route": "app/api/articles/route.js",
+  "/apply-reporter/page": "app/apply-reporter/page.js",
+  "/article/[id]/page": "app/article/[id]/page.js",
+  "/auth/register/page": "app/auth/register/page.js",
+  "/channel/[id]/page": "app/channel/[id]/page.js",
+  "/home/page": "app/home/page.js",
+  "/page": "app/page.js",
+  "/preferences/page": "app/preferences/page.js",
+  "/profile/page": "app/profile/page.js",
+  "/support/page": "app/support/page.js"
+}

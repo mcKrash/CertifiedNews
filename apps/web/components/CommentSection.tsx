@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { checkContentViolation, recordViolation, isUserBanned, COMMUNITY_GUIDELINES } from '@/lib/moderation';
-import { CloseIcon, ReplyIcon, ImageIcon, EmojiIcon, MoreIcon, SortIcon, ChatBubbleIcon, HeartIcon } from '@/lib/icons';
+import { CloseIcon, ReplyIcon, ImageIcon, EmojiIcon, MoreIcon, SortIcon, ChatBubbleIcon, HeartIcon, LinkIcon } from '@/lib/icons';
 
 interface Comment {
   id: string;
@@ -487,23 +487,13 @@ export default function CommentSection({ articleId, articleTitle, onCommentAdded
               </button>
             </div>
             <div className="p-6">
-              <div className="space-y-6">
-                {COMMUNITY_GUIDELINES.map((guideline, index) => (
-                  <div key={index} className="flex gap-4">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0" style={{ backgroundColor: '#00B4A0' }}>
-                      {index + 1}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-lg mb-1" style={{ color: '#2C3E50' }}>{guideline.title}</h3>
-                      <p className="text-sm leading-relaxed" style={{ color: '#7F8C8D' }}>{guideline.description}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-6 text-sm leading-relaxed" style={{ color: '#7F8C8D' }}>
+                <div dangerouslySetInnerHTML={{ __html: COMMUNITY_GUIDELINES.replace(/^## /gm, '<h2 style="color: #2C3E50; font-size: 1.25rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem;">').replace(/^### /gm, '<h3 style="color: #2C3E50; font-weight: bold; margin-top: 0.75rem; margin-bottom: 0.25rem;">').replace(/\n/g, '</h3>\n') }} />
               </div>
               <div className="mt-8 p-4 rounded-lg bg-gray-50 border border-gray-200">
-                <h4 className="font-bold mb-2" style={{ color: '#2C3E50' }}>Enforcement Policy</h4>
+                <h4 className="font-bold mb-2" style={{ color: '#2C3E50' }}>Need Help?</h4>
                 <p className="text-sm" style={{ color: '#7F8C8D' }}>
-                  Violations of these guidelines will result in content removal. Repeated violations will lead to temporary or permanent bans from commenting on the platform.
+                  If you have questions about these guidelines or believe your comment was removed in error, please contact our support team.
                 </p>
               </div>
               <button

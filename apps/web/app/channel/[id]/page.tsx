@@ -8,6 +8,30 @@ import { channels } from '@/lib/channels';
 import CommentSection from '@/components/CommentSection';
 import { HeartIcon, MessageCircleIcon, LinkChainIcon } from '@/lib/icons';
 
+// Wrapper components to handle icon styling
+const StyledHeartIcon = ({ size = 20 }: { size?: number }) => <HeartIcon size={size} />;
+const StyledMessageCircleIcon = ({ size = 20 }: { size?: number }) => <MessageCircleIcon size={size} />;
+const StyledLinkChainIcon = ({ size = 20 }: { size?: number }) => <LinkChainIcon size={size} />;
+
+interface Article {
+  id: string;
+  title: string;
+  body: string;
+  channelId: number;
+  channelName: string;
+  sourceUrl: string;
+  sourceName: string;
+  status: string;
+  publishedAt: string;
+  imageUrl: string | null;
+  viewCount: number;
+}
+
+interface ArticleLikeData {
+  liked: boolean;
+  count: number;
+}
+
 export default function ChannelPage() {
   const handleArticleLike = (articleId: string) => {
   console.log('Like article:', articleId);
@@ -26,9 +50,9 @@ const getTotalEngagement = (articleId: string) => {
   const channel = channels.find(c => c.id === channelId);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
-  const [articles, setArticles] = useState<any[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [articleLikes, setArticleLikes] = useState<Record<string, { liked: boolean; count: number }>>({});
+  const [articleLikes, setArticleLikes] = useState<Record<string, ArticleLikeData>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
 
@@ -52,7 +76,7 @@ const getTotalEngagement = (articleId: string) => {
         
         if (data.status === 'ok' && data.items) {
           // Transform RSS items to our article format
-          const transformedArticles = data.items.slice(0, 20).map((item: any, idx: number) => ({
+          const transformedArticles: Article[] = data.items.slice(0, 20).map((item: any, idx: number) => ({
             id: `${channelId}-${idx}`,
             title: item.title,
             body: item.description || item.content || 'No description available',
@@ -70,7 +94,9 @@ const getTotalEngagement = (articleId: string) => {
       } catch (error) {
         console.error('Error fetching channel articles:', error);
         // Fallback to mock articles if RSS fetch fails
-        setArticles(generateMockArticles(channel));
+        if (channel) {
+          setArticles(generateMockArticles(channel));
+        }
       } finally {
         setLoading(false);
       }
@@ -79,7 +105,7 @@ const getTotalEngagement = (articleId: string) => {
     fetchChannelArticles();
   }, [channel, channelId]);
 
-  const generateMockArticles = (ch: typeof channel) => {
+  const generateMockArticles = (ch: typeof channel): Article[] => {
     if (!ch) return [];
     
     const mockTitles = [
@@ -127,6 +153,7 @@ const getTotalEngagement = (articleId: string) => {
       setIsFollowing(false);
     }
     setShowUnfollowConfirm(false);
+  };
 
   const handleArticleLike = (articleId: string) => {
     setArticleLikes(prev => {
@@ -141,15 +168,16 @@ const getTotalEngagement = (articleId: string) => {
     });
   };
 
-  const getArticleLikeData = (articleId: string) => {
+  const getArticleLikeData = (articleId: string): ArticleLikeData => {
     return articleLikes[articleId] || { liked: false, count: Math.floor(Math.random() * 200) };
   };
 
-  const getTotalEngagement = (articleId: string) => {
+  const getTotalEngagement = (articleId: string): number => {
     const likeData = getArticleLikeData(articleId);
     return likeData.count;
   };
-  const getCommentCount = (articleId: string) => {
+
+  const getCommentCount = (articleId: string): number => {
     return commentCounts[articleId] || 0;
   };
 
@@ -160,9 +188,7 @@ const getTotalEngagement = (articleId: string) => {
     }));
   };
 
-  };
-
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -287,114 +313,142 @@ const getTotalEngagement = (articleId: string) => {
         {/* Articles Feed */}
         {!loading && articles.length > 0 && (
           <div className="space-y-6">
-            {articles.map((article) => (
-              <article
-                key={article.id}
-                className="rounded-lg border p-4 lg:p-6 hover:shadow-md transition-shadow bg-white"
-                style={{ borderColor: '#E0E6ED' }}
-              >
-                <div className="flex items-start justify-between mb-4 flex-col sm:flex-row gap-2">
-                  <div className="flex gap-3 flex-1 min-w-0">
-                    <img
-                      src={channel.logo}
-                      alt={channel.name}
-                      className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
+            {articles.map((article) => {
+              const likeData = getArticleLikeData(article.id);
+              const commentCount = getCommentCount(article.id);
+              return (
+                <article
+                  key={article.id}
+                  className="rounded-lg border p-4 lg:p-6 hover:shadow-md transition-shadow bg-white"
+                  style={{ borderColor: '#E0E6ED' }}
+                >
+                  <div className="flex items-start gap-4 lg:gap-6 flex-col lg:flex-row">
+                    {/* Article Image */}
+                    {article.imageUrl && (
+                      <div className="w-full lg:w-48 h-32 lg:h-32 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
+                        <img
+                          src={article.imageUrl}
+                          alt={article.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Article Content */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#00B4A0' }}>
-                        {channel.name}
+                      <div className="flex items-start justify-between gap-4 mb-2">
+                        <Link
+                          href={`/article/${article.id}`}
+                          className="text-lg lg:text-xl font-bold hover:text-[#00B4A0] transition-colors"
+                          style={{ color: '#2C3E50' }}
+                        >
+                          {article.title}
+                        </Link>
+                      </div>
+
+                      <p className="text-sm lg:text-base mb-4 line-clamp-2" style={{ color: '#7F8C8D' }}>
+                        {article.body}
                       </p>
-                      <h3 className="text-base lg:text-lg font-bold mt-1 leading-tight" style={{ color: '#2C3E50' }}>
-                        {article.title}
-                      </h3>
+
+                      {/* Article Meta */}
+                      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                        <div className="flex items-center gap-2 text-xs lg:text-sm" style={{ color: '#95A5A6' }}>
+                          <span>{article.sourceName}</span>
+                          <span>•</span>
+                          <span>{formatDate(article.publishedAt)}</span>
+                          <span>•</span>
+                          <span>{article.viewCount.toLocaleString()} views</span>
+                        </div>
+                      </div>
+
+                      {/* Engagement Buttons */}
+                      <div className="flex items-center gap-4 lg:gap-6">
+                        <button
+                          onClick={() => handleArticleLike(article.id)}
+                          className="flex items-center gap-2 text-sm font-semibold transition-colors hover:text-[#E74C3C]"
+                          style={{ color: likeData.liked ? '#E74C3C' : '#95A5A6' }}
+                        >
+                          <HeartIcon size={20} />
+                          <span>{likeData.count}</span>
+                        </button>
+
+                        <button
+                          onClick={() => setExpandedComments(prev => ({
+                            ...prev,
+                            [article.id]: !prev[article.id]
+                          }))}
+                          className="flex items-center gap-2 text-sm font-semibold transition-colors hover:text-[#00B4A0]"
+                          style={{ color: '#95A5A6' }}
+                        >
+                          <MessageCircleIcon size={20} />
+                          <span>{commentCount}</span>
+                        </button>
+
+                        <a
+                          href={article.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm font-semibold transition-colors hover:text-[#00B4A0]"
+                          style={{ color: '#95A5A6' }}
+                        >
+                          <LinkChainIcon size={20} />
+                          <span>Read</span>
+                        </a>
+                      </div>
                     </div>
                   </div>
-                  <div
-                    className="px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 flex-shrink-0"
-                    style={{ backgroundColor: '#E8F8F5', color: '#00B4A0' }}
-                  >
-                    <span>✓</span> Verified
-                  </div>
-                </div>
 
-                <p className="text-sm mb-4 leading-relaxed" style={{ color: '#7F8C8D' }}>
-                  {article.body.substring(0, 200)}...
-                </p>
-
-                <div className="flex items-center justify-between pt-4 border-t flex-col sm:flex-row gap-2" style={{ borderColor: '#E0E6ED' }}>
-                  <div className="flex items-center gap-4 text-[10px] font-bold" style={{ color: '#95A5A6' }}>
-                    <span>{channel.name}</span>
-                    <span>•</span>
-                    <span>{formatDate(article.publishedAt)}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => handleArticleLike(article.id)}
-                      className="flex items-center gap-1.5 group"
-                    >
-                      <span className="text-sm group-hover:scale-120 transition-transform" style={{ color: getArticleLikeData(article.id).liked ? '#00B4A0' : 'inherit' }}>
-                        {getArticleLikeData(article.id).liked ? '❤️' : '👍'}
-                      </span>
-                      <span className="text-[10px] font-bold" style={{ color: getArticleLikeData(article.id).liked ? '#00B4A0' : '#95A5A6' }}>
-                        {getTotalEngagement(article.id)}
-                      </span>
-                    </button>
-                    <button className="flex items-center gap-1.5 group">
-                      <span className="text-sm group-hover:scale-120 transition-transform">💬</span>
-                      <span className="text-[10px] font-bold text-gray-500">{Math.floor(Math.random() * 50)}</span>
-                    </button>
-                    <a
-                      href={article.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 group"
-                    >
-                      <span className="text-sm group-hover:scale-120 transition-transform">🔗</span>
-                    </a>
-                  </div>
-                </div>
-                {/* Comment Section */}
-                <CommentSection articleId={article.id} articleTitle={article.title} onCommentAdded={() => handleCommentAdded(article.id)} isExpanded={expandedComments[article.id] || false} onToggleExpand={(expanded) => setExpandedComments(prev => ({ ...prev, [article.id]: expanded }))} />
-              </article>
-            ))}
+                  {/* Comment Section */}
+                  {expandedComments[article.id] && (
+                    <div className="mt-6 pt-6 border-t" style={{ borderColor: '#E0E6ED' }}>
+                      <CommentSection
+                        articleId={article.id}
+                        articleTitle={article.title}
+                        onCommentAdded={() => handleCommentAdded(article.id)}
+                      />
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
 
         {/* Empty State */}
         {!loading && articles.length === 0 && (
           <div className="text-center py-12">
-            <p style={{ color: '#7F8C8D' }}>No articles available at the moment.</p>
+            <p style={{ color: '#7F8C8D' }}>No articles available from {channel.name}</p>
           </div>
         )}
       </main>
 
       {/* Unfollow Confirmation Modal */}
       {showUnfollowConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-lg">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
             <h3 className="text-lg font-bold mb-4" style={{ color: '#2C3E50' }}>
               Unfollow {channel.name}?
             </h3>
             <p className="mb-6" style={{ color: '#7F8C8D' }}>
-              Are you sure you want to unfollow this channel? You can follow it again anytime.
+              You will no longer receive updates from this channel.
             </p>
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 onClick={() => handleUnfollowConfirm(false)}
-                className="flex-1 px-4 py-2 rounded-md font-bold border"
-                style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
+                className="flex-1 px-4 py-2 rounded-lg font-semibold transition-colors"
+                style={{ backgroundColor: '#E0E6ED', color: '#2C3E50' }}
               >
-                No, Keep Following
+                Cancel
               </button>
               <button
                 onClick={() => handleUnfollowConfirm(true)}
-                className="flex-1 px-4 py-2 rounded-md font-bold text-white"
+                className="flex-1 px-4 py-2 rounded-lg font-semibold text-white transition-colors"
                 style={{ backgroundColor: '#E74C3C' }}
               >
-                Yes, Unfollow
+                Unfollow
               </button>
             </div>
           </div>
