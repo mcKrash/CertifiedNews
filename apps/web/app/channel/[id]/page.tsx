@@ -12,6 +12,13 @@ export default function ChannelPage() {
   const handleArticleLike = (articleId: string) => {
   console.log('Like article:', articleId);
 };
+  const getArticleLikeData = (articleId: string) => {
+  return { liked: false, count: 0 };
+};
+
+const getTotalEngagement = (articleId: string) => {
+  return 0;
+};
   const router = useRouter();
   const params = useParams();
   const channelId = parseInt(params.id as string);
