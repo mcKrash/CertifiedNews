@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
@@ -7,133 +8,58 @@ async function main() {
 
   // Create Categories
   const categories = [
-    {
-      name: 'All News',
-      slug: 'all',
-      description: 'All news from all categories',
-      color: '#00B4A0',
-    },
-    {
-      name: 'Sport',
-      slug: 'sport',
-      description: 'Sports news and updates',
-      color: '#FF6B6B',
-    },
-    {
-      name: 'Politics',
-      slug: 'politics',
-      description: 'Political news and analysis',
-      color: '#FFA500',
-    },
-    {
-      name: 'Oceans & Forests',
-      slug: 'oceans-forests',
-      description: 'Environmental and conservation news',
-      color: '#4ECDC4',
-    },
-    {
-      name: 'Technology',
-      slug: 'technology',
-      description: 'Tech news and innovations',
-      color: '#45B7D1',
-    },
-    {
-      name: 'Health',
-      slug: 'health',
-      description: 'Health and wellness news',
-      color: '#96CEB4',
-    },
-    {
-      name: 'Science',
-      slug: 'science',
-      description: 'Scientific discoveries and research',
-      color: '#DDA15E',
-    },
+    { name: 'All News', slug: 'all', description: 'All news from all categories', color: '#00B4A0' },
+    { name: 'Sport', slug: 'sport', description: 'Sports news and updates', color: '#FF6B6B' },
+    { name: 'Politics', slug: 'politics', description: 'Political news and analysis', color: '#FFA500' },
+    { name: 'Oceans & Forests', slug: 'oceans-forests', description: 'Environmental and conservation news', color: '#4ECDC4' },
+    { name: 'Technology', slug: 'technology', description: 'Tech news and innovations', color: '#45B7D1' },
+    { name: 'Health', slug: 'health', description: 'Health and wellness news', color: '#96CEB4' },
+    { name: 'Science', slug: 'science', description: 'Scientific discoveries and research', color: '#DDA15E' },
   ];
 
   for (const category of categories) {
-    const existing = await prisma.category.findUnique({
+    await prisma.category.upsert({
       where: { slug: category.slug },
+      update: {},
+      create: category,
     });
-
-    if (!existing) {
-      await prisma.category.create({
-        data: category,
-      });
-      console.log(`✓ Created category: ${category.name}`);
-    }
   }
+  console.log('✓ Categories seeded');
 
   // Create Sources
   const sources = [
-    {
-      name: 'BBC News',
-      domain: 'bbc.com',
-      url: 'https://www.bbc.com/news',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/BBC_News_2022.svg/1200px-BBC_News_2022.svg.png',
-      description: 'British Broadcasting Corporation - Global news coverage',
-      isVerified: true,
-      trustScore: 95,
-    },
-    {
-      name: 'Reuters',
-      domain: 'reuters.com',
-      url: 'https://www.reuters.com',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Reuters_logo.svg/1200px-Reuters_logo.svg.png',
-      description: 'Reuters - International news agency',
-      isVerified: true,
-      trustScore: 95,
-    },
-    {
-      name: 'AP News',
-      domain: 'apnews.com',
-      url: 'https://apnews.com',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Associated_Press_logo_2012.svg/1200px-Associated_Press_logo_2012.svg.png',
-      description: 'Associated Press - American news agency',
-      isVerified: true,
-      trustScore: 95,
-    },
-    {
-      name: 'The Guardian',
-      domain: 'theguardian.com',
-      url: 'https://www.theguardian.com',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/The_Guardian_2015_logo.svg/1200px-The_Guardian_2015_logo.svg.png',
-      description: 'The Guardian - British newspaper',
-      isVerified: true,
-      trustScore: 92,
-    },
-    {
-      name: 'NPR',
-      domain: 'npr.org',
-      url: 'https://www.npr.org',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/NPR_logo.svg/1200px-NPR_logo.svg.png',
-      description: 'NPR - American public radio',
-      isVerified: true,
-      trustScore: 92,
-    },
-    {
-      name: 'CNN',
-      domain: 'cnn.com',
-      url: 'https://www.cnn.com',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/CNN.svg/1200px-CNN.svg.png',
-      description: 'CNN - Cable News Network',
-      isVerified: true,
-      trustScore: 88,
-    },
+    { name: 'BBC News', domain: 'bbc.com', url: 'https://www.bbc.com/news', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/BBC_News_2022.svg/1200px-BBC_News_2022.svg.png', description: 'British Broadcasting Corporation', isVerified: true, trustScore: 95 },
+    { name: 'Reuters', domain: 'reuters.com', url: 'https://www.reuters.com', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Reuters_logo.svg/1200px-Reuters_logo.svg.png', description: 'Reuters International news agency', isVerified: true, trustScore: 95 },
   ];
 
   for (const source of sources) {
-    const existing = await prisma.source.findUnique({
+    await prisma.source.upsert({
       where: { domain: source.domain },
+      update: {},
+      create: source,
     });
-
-    if (!existing) {
-      await prisma.source.create({
-        data: source,
-      });
-      console.log(`✓ Created source: ${source.name}`);
-    }
   }
+  console.log('✓ Sources seeded');
+
+  // Create Users
+  const hashedPassword = await bcrypt.hash('Admin123!', 10);
+  const reporterPassword = await bcrypt.hash('Reporter123!', 10);
+  const userPassword = await bcrypt.hash('User123!', 10);
+
+  const users = [
+    { email: 'admin@certifiednews.com', password: hashedPassword, name: 'System Admin', role: 'ADMIN', isVerified: true },
+    { email: 'reporter@certifiednews.com', password: reporterPassword, name: 'Lead Reporter', role: 'REPORTER', isVerified: true },
+    { email: 'user@certifiednews.com', password: userPassword, name: 'Regular User', role: 'USER', isVerified: false },
+  ];
+
+  for (const user of users) {
+    await prisma.user.upsert({
+      where: { email: user.email },
+      update: { password: user.password, role: user.role },
+      create: user,
+    });
+  }
+  console.log('✓ Users seeded (Admin: admin@certifiednews.com / Admin123!)');
 
   console.log('✅ Database seed completed successfully!');
 }
