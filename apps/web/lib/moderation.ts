@@ -103,16 +103,17 @@ export function checkContentViolation(content: string): {
 
   // Check for excessive repetition
   const words = content.split(/\s+/);
-  const wordFrequency = new Map<string, number>();
-  for (const word of words) {
-    wordFrequency.set(word, (wordFrequency.get(word) || 0) + 1);
-  }
+  const wordFrequency: Record<string, number> = {};
+  words.forEach(word => {
+    wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+  });
   
-  for (const [word, count] of wordFrequency) {
+  for (const word in wordFrequency) {
+    const count = wordFrequency[word];
     if (count > words.length * 0.3 && word.length > 3) {
       return {
         isViolating: true,
-        reason: 'Excessive repetition detected. Please vary your message.',
+        reason: 'Spam detected: Repetitive word patterns.',
         severity: 'low',
       };
     }
