@@ -9,6 +9,9 @@ import CommentSection from '@/components/CommentSection';
 import { HeartIcon, MessageCircleIcon, LinkChainIcon } from '@/lib/icons';
 
 export default function ChannelPage() {
+  const handleArticleLike = (articleId: string) => {
+  console.log('Like article:', articleId);
+};
   const router = useRouter();
   const params = useParams();
   const channelId = parseInt(params.id as string);
