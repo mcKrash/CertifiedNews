@@ -13,6 +13,7 @@ const generateToken = (user) => {
       id: user.id,
       email: user.email,
       role: user.role,
+      userType: user.userType,
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
@@ -20,17 +21,26 @@ const generateToken = (user) => {
 };
 
 /**
- * Register a new user
+ * Register a new user (all types)
  */
 const register = async (req, res) => {
   try {
-    const { email, name, password } = req.body;
+    const { email, name, password, userType = 'REGULAR_USER' } = req.body;
 
     // Validate input
     if (!email || !password || !name) {
       return res.status(400).json({
         success: false,
         message: 'Email, name, and password are required',
+      });
+    }
+
+    // Validate userType
+    const validUserTypes = ['REGULAR_USER', 'JOURNALIST', 'AGENCY'];
+    if (!validUserTypes.includes(userType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user type',
       });
     }
 
@@ -46,6 +56,20 @@ const register = async (req, res) => {
       });
     }
 
+    // Generate unique username
+    let username = name.toLowerCase().replace(/\s+/g, '_');
+    let usernameExists = await prisma.user.findUnique({
+      where: { username },
+    });
+    let counter = 1;
+    while (usernameExists) {
+      username = `${name.toLowerCase().replace(/\s+/g, '_')}_${counter}`;
+      usernameExists = await prisma.user.findUnique({
+        where: { username },
+      });
+      counter++;
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -53,9 +77,11 @@ const register = async (req, res) => {
     const user = await prisma.user.create({
       data: {
         email,
+        username,
         name,
         password: hashedPassword,
         role: 'USER',
+        userType,
       },
     });
 
@@ -70,6 +96,8 @@ const register = async (req, res) => {
           id: user.id,
           email: user.email,
           name: user.name,
+          username: user.username,
+          userType: user.userType,
           role: user.role,
         },
         token,
@@ -103,6 +131,11 @@ const login = async (req, res) => {
     // Find user
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        preferences: true,
+        journalistProfile: true,
+        agencyProfile: true,
+      },
     });
 
     if (!user) {
@@ -148,7 +181,15 @@ const login = async (req, res) => {
           id: user.id,
           email: user.email,
           name: user.name,
+          username: user.username,
+          userType: user.userType,
           role: user.role,
+          emailVerified: user.emailVerified,
+          avatarUrl: user.avatarUrl,
+          profilePhotoUrl: user.profilePhotoUrl,
+          preferences: user.preferences,
+          journalistProfile: user.journalistProfile,
+          agencyProfile: user.agencyProfile,
         },
         token,
       },
@@ -170,16 +211,10 @@ const getCurrentUser = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatar: true,
-        bio: true,
-        role: true,
-        isVerified: true,
-        isBanned: true,
-        createdAt: true,
+      include: {
+        preferences: true,
+        journalistProfile: true,
+        agencyProfile: true,
       },
     });
 
@@ -192,7 +227,24 @@ const getCurrentUser = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: user,
+      data: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        username: user.username,
+        userType: user.userType,
+        role: user.role,
+        bio: user.bio,
+        avatarUrl: user.avatarUrl,
+        profilePhotoUrl: user.profilePhotoUrl,
+        isVerified: user.isVerified,
+        emailVerified: user.emailVerified,
+        isBanned: user.isBanned,
+        createdAt: user.createdAt,
+        preferences: user.preferences,
+        journalistProfile: user.journalistProfile,
+        agencyProfile: user.agencyProfile,
+      },
     });
   } catch (error) {
     console.error('Get user error:', error);
@@ -205,9 +257,185 @@ const getCurrentUser = async (req, res) => {
 };
 
 /**
- * Verify code (placeholder for email/SMS verification)
+ * Save user preferences (onboarding)
  */
-const verifyCode = async (req, res) => {
+const savePreferences = async (req, res) => {
+  try {
+    const { topicsOfInterest, preferredLanguage, avatarUrl } = req.body;
+    const userId = req.user.id;
+
+    // Update or create preferences
+    const preferences = await prisma.userPreferences.upsert({
+      where: { userId },
+      update: {
+        topicsOfInterest: topicsOfInterest || [],
+        preferredLanguage: preferredLanguage || 'en',
+      },
+      create: {
+        userId,
+        topicsOfInterest: topicsOfInterest || [],
+        preferredLanguage: preferredLanguage || 'en',
+      },
+    });
+
+    // Update user avatar if provided
+    if (avatarUrl) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { avatarUrl },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Preferences saved successfully',
+      data: preferences,
+    });
+  } catch (error) {
+    console.error('Save preferences error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save preferences',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Save journalist profile
+ */
+const saveJournalistProfile = async (req, res) => {
+  try {
+    const { beat, affiliatedOrg, portfolioUrl, topicsOfInterest, preferredLanguage } = req.body;
+    const userId = req.user.id;
+
+    // Create or update journalist profile
+    const profile = await prisma.journalistProfile.upsert({
+      where: { userId },
+      update: {
+        beat,
+        affiliatedOrg,
+        portfolioUrl,
+      },
+      create: {
+        userId,
+        beat,
+        affiliatedOrg,
+        portfolioUrl,
+      },
+    });
+
+    // Save preferences
+    await prisma.userPreferences.upsert({
+      where: { userId },
+      update: {
+        topicsOfInterest: topicsOfInterest || [],
+        preferredLanguage: preferredLanguage || 'en',
+      },
+      create: {
+        userId,
+        topicsOfInterest: topicsOfInterest || [],
+        preferredLanguage: preferredLanguage || 'en',
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Journalist profile saved successfully',
+      data: profile,
+    });
+  } catch (error) {
+    console.error('Save journalist profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save journalist profile',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Save agency profile
+ */
+const saveAgencyProfile = async (req, res) => {
+  try {
+    const {
+      organizationName,
+      website,
+      country,
+      agencyType,
+      registrationNumber,
+      primaryContactName,
+      primaryContactEmail,
+      logoUrl,
+      description,
+      twitter,
+      facebook,
+      instagram,
+    } = req.body;
+    const userId = req.user.id;
+
+    // Create or update agency profile
+    const profile = await prisma.agencyProfile.upsert({
+      where: { userId },
+      update: {
+        organizationName,
+        website,
+        country,
+        agencyType,
+        registrationNumber,
+        primaryContactName,
+        primaryContactEmail,
+        logoUrl,
+        description,
+      },
+      create: {
+        userId,
+        organizationName,
+        website,
+        country,
+        agencyType,
+        registrationNumber,
+        primaryContactName,
+        primaryContactEmail,
+        logoUrl,
+        description,
+      },
+    });
+
+    // Create or update social handles
+    if (twitter || facebook || instagram) {
+      await prisma.socialHandles.upsert({
+        where: { agencyProfileId: profile.id },
+        update: { twitter, facebook, instagram },
+        create: {
+          agencyProfileId: profile.id,
+          twitter,
+          facebook,
+          instagram,
+        },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Agency profile saved successfully',
+      data: profile,
+    });
+  } catch (error) {
+    console.error('Save agency profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save agency profile',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Verify email
+ */
+const verifyEmail = async (req, res) => {
   try {
     const { email, code } = req.body;
 
@@ -238,10 +466,10 @@ const verifyCode = async (req, res) => {
       });
     }
 
-    // Mark user as verified
+    // Mark email as verified
     await prisma.user.update({
       where: { id: user.id },
-      data: { isVerified: true },
+      data: { emailVerified: true },
     });
 
     res.status(200).json({
@@ -249,10 +477,10 @@ const verifyCode = async (req, res) => {
       message: 'Email verified successfully',
     });
   } catch (error) {
-    console.error('Verification error:', error);
+    console.error('Email verification error:', error);
     res.status(500).json({
       success: false,
-      message: 'Verification failed',
+      message: 'Email verification failed',
       error: error.message,
     });
   }
@@ -262,6 +490,9 @@ module.exports = {
   register,
   login,
   getCurrentUser,
-  verifyCode,
+  savePreferences,
+  saveJournalistProfile,
+  saveAgencyProfile,
+  verifyEmail,
   generateToken,
 };
