@@ -1,23 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { posts } = require('../data/mockData');
+const postsController = require('../controllers/postsController');
+const { verifyToken } = require('../middleware/auth');
 
-router.get('/', (req, res) => {
-  res.json(posts);
-});
+// Public routes
+router.get('/', postsController.getPosts);
+router.get('/:postId', postsController.getPost);
+router.get('/user/:userId', postsController.getUserPosts);
 
-router.post('/', (req, res) => {
-  const { title, content, sourceUrl } = req.body;
-  const newPost = {
-    id: Date.now().toString(),
-    title,
-    content,
-    sourceUrl,
-    createdAt: new Date().toISOString(),
-    status: 'pending'
-  };
-  posts.push(newPost);
-  res.status(201).json(newPost);
-});
+// Protected routes
+router.post('/', verifyToken, postsController.createPost);
+router.put('/:postId', verifyToken, postsController.updatePost);
+router.delete('/:postId', verifyToken, postsController.deletePost);
 
 module.exports = router;

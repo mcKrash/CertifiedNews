@@ -58,6 +58,27 @@ const requireRole = (...allowedRoles) => {
 };
 
 /**
+ * Verify user is an admin
+ */
+const verifyAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required',
+    });
+  }
+
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin access required',
+    });
+  }
+
+  next();
+};
+
+/**
  * Check if user is banned
  */
 const checkBanStatus = async (req, res, next) => {
@@ -98,5 +119,6 @@ const checkBanStatus = async (req, res, next) => {
 module.exports = {
   verifyToken,
   requireRole,
+  verifyAdmin,
   checkBanStatus,
 };

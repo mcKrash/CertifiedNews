@@ -14,7 +14,7 @@ const getDashboardStats = async (req, res) => {
       verifiedJournalists,
       verifiedAgencies,
       totalArticles,
-      reportedContent,
+      openTickets,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.post.count(),
@@ -30,15 +30,15 @@ const getDashboardStats = async (req, res) => {
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: {
-        author: {
-          select: { id: true, name: true, username: true },
+        user: {
+          select: { id: true, name: true, username: true, userType: true },
         },
       },
     });
 
     const recentApplications = await prisma.reporterApplication.findMany({
       take: 5,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { submittedAt: 'desc' },
       where: { status: 'PENDING' },
       include: {
         user: {
@@ -58,60 +58,63 @@ const getDashboardStats = async (req, res) => {
           verifiedJournalists,
           verifiedAgencies,
           totalArticles,
-          reportedContent,
+          openTickets,
         },
-        recentPosts,
-        recentApplications,
+        recentPosts: recentPosts.map(post => ({
+          id: post.id,
+          content: post.content,
+          author: post.user,
+          createdAt: post.createdAt,
+        })),
+        recentApplications: recentApplications.map(app => ({
+          id: app.id,
+          user: app.user,
+          status: app.status,
+          submittedAt: app.submittedAt,
+        })),
       },
     });
   } catch (error) {
-    console.error('Get dashboard stats error:', error);
+    console.error('Dashboard stats error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch dashboard statistics',
-      error: error.message,
     });
   }
 };
 
 /**
- * Get all reporter applications
+ * Get reporter applications
  */
 const getReporterApplications = async (req, res) => {
   try {
     const { status = 'PENDING', page = 1, limit = 10 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (page - 1) * limit;
 
     const applications = await prisma.reporterApplication.findMany({
-      where: status ? { status } : {},
+      where: { status },
       skip,
       take: parseInt(limit),
-      orderBy: { createdAt: 'desc' },
+      orderBy: { submittedAt: 'desc' },
       include: {
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            username: true,
-            avatarUrl: true,
-          },
+          select: { id: true, name: true, email: true, userType: true },
         },
       },
     });
 
-    const total = await prisma.reporterApplication.count({
-      where: status ? { status } : {},
-    });
+    const total = await prisma.reporterApplication.count({ where: { status } });
 
     res.status(200).json({
       success: true,
-      data: applications,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit)),
+      data: {
+        applications,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(total / limit),
+        },
       },
     });
   } catch (error) {
@@ -119,7 +122,6 @@ const getReporterApplications = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch applications',
-      error: error.message,
     });
   }
 };
@@ -133,6 +135,7 @@ const approveApplication = async (req, res) => {
 
     const application = await prisma.reporterApplication.findUnique({
       where: { id: applicationId },
+      include: { user: true },
     });
 
     if (!application) {
@@ -148,16 +151,14 @@ const approveApplication = async (req, res) => {
       data: {
         status: 'APPROVED',
         reviewedAt: new Date(),
+        reviewedBy: req.user.id,
       },
     });
 
     // Update user verification status
     await prisma.user.update({
       where: { id: application.userId },
-      data: {
-        isVerified: true,
-        userType: 'JOURNALIST',
-      },
+      data: { isVerified: true },
     });
 
     res.status(200).json({
@@ -169,7 +170,6 @@ const approveApplication = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to approve application',
-      error: error.message,
     });
   }
 };
@@ -198,8 +198,9 @@ const rejectApplication = async (req, res) => {
       where: { id: applicationId },
       data: {
         status: 'REJECTED',
+        reviewNotes: reason || 'No reason provided',
         reviewedAt: new Date(),
-        rejectionReason: reason,
+        reviewedBy: req.user.id,
       },
     });
 
@@ -212,52 +213,57 @@ const rejectApplication = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to reject application',
-      error: error.message,
     });
   }
 };
 
 /**
- * Get all users for management
+ * Get users
  */
 const getUsers = async (req, res) => {
   try {
-    const { userType, isVerified, page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const where = {};
-    if (userType) where.userType = userType;
-    if (isVerified !== undefined) where.isVerified = isVerified === 'true';
+    const { search = '', page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
 
     const users = await prisma.user.findMany({
-      where,
+      where: {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      },
       skip,
       take: parseInt(limit),
       select: {
         id: true,
         name: true,
         email: true,
-        username: true,
         userType: true,
         isVerified: true,
+        isBanned: true,
         createdAt: true,
-        _count: {
-          select: { posts: true, followers: true },
-        },
       },
-      orderBy: { createdAt: 'desc' },
     });
 
-    const total = await prisma.user.count({ where });
+    const total = await prisma.user.count({
+      where: {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      },
+    });
 
     res.status(200).json({
       success: true,
-      data: users,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit)),
+      data: {
+        users,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(total / limit),
+        },
       },
     });
   } catch (error) {
@@ -265,18 +271,17 @@ const getUsers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch users',
-      error: error.message,
     });
   }
 };
 
 /**
- * Suspend user
+ * Ban user
  */
-const suspendUser = async (req, res) => {
+const banUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { reason } = req.body;
+    const { reason, duration } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -289,25 +294,26 @@ const suspendUser = async (req, res) => {
       });
     }
 
-    // Update user status
+    const banExpiresAt = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null;
+
     await prisma.user.update({
       where: { id: userId },
       data: {
-        isSuspended: true,
-        suspensionReason: reason,
+        isBanned: true,
+        banReason: reason || 'No reason provided',
+        banExpiresAt,
       },
     });
 
     res.status(200).json({
       success: true,
-      message: 'User suspended successfully',
+      message: 'User banned successfully',
     });
   } catch (error) {
-    console.error('Suspend user error:', error);
+    console.error('Ban user error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to suspend user',
-      error: error.message,
+      message: 'Failed to ban user',
     });
   }
 };
@@ -318,44 +324,39 @@ const suspendUser = async (req, res) => {
 const getSupportTickets = async (req, res) => {
   try {
     const { status = 'OPEN', page = 1, limit = 10 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (page - 1) * limit;
 
     const tickets = await prisma.supportTicket.findMany({
-      where: status ? { status } : {},
+      where: { status },
       skip,
       take: parseInt(limit),
       orderBy: { createdAt: 'desc' },
       include: {
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+          select: { id: true, name: true, email: true },
         },
       },
     });
 
-    const total = await prisma.supportTicket.count({
-      where: status ? { status } : {},
-    });
+    const total = await prisma.supportTicket.count({ where: { status } });
 
     res.status(200).json({
       success: true,
-      data: tickets,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit)),
+      data: {
+        tickets,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(total / limit),
+        },
       },
     });
   } catch (error) {
-    console.error('Get support tickets error:', error);
+    console.error('Get tickets error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch support tickets',
-      error: error.message,
     });
   }
 };
@@ -383,7 +384,7 @@ const resolveTicket = async (req, res) => {
       where: { id: ticketId },
       data: {
         status: 'RESOLVED',
-        resolution,
+        resolution: resolution || 'Resolved by admin',
         resolvedAt: new Date(),
       },
     });
@@ -397,7 +398,6 @@ const resolveTicket = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to resolve ticket',
-      error: error.message,
     });
   }
 };
@@ -408,7 +408,7 @@ module.exports = {
   approveApplication,
   rejectApplication,
   getUsers,
-  suspendUser,
+  banUser,
   getSupportTickets,
   resolveTicket,
 };
