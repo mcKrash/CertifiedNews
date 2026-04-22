@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1); // 1: Registration, 2: Onboarding
   const [formData, setFormData] = useState({
     name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -59,7 +60,7 @@ export default function RegisterPage() {
         formData.email,
         formData.password,
         formData.name,
-        'REGULAR_USER'
+        formData.username
       );
       setToken(response.token);
       setStep(2);
@@ -131,6 +132,19 @@ export default function RegisterPage() {
                 name="name"
                 required
                 value={formData.name}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#00B4A0]"
+                style={{ borderColor: '#E0E6ED' }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <input
+                type="text"
+                name="username"
+                required
+                value={formData.username}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#00B4A0]"
                 style={{ borderColor: '#E0E6ED' }}
