@@ -52,7 +52,7 @@ router.get('/users', adminDashboardController.getUsers);
  * @desc    Suspend user
  * @access  Admin
  */
-router.post('/users/:userId/suspend', adminDashboardController.suspendUser);
+router.post('/users/:userId/ban', adminDashboardController.banUser);
 
 /**
  * @route   GET /api/admin/dashboard/tickets

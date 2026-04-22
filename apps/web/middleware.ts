@@ -15,7 +15,12 @@ export function middleware(request: NextRequest) {
     pathname === '/logo.png';
 
   // If the user is not logged in and trying to access a protected route
-  if (!token && !isPublicRoute) {
+  // Allow /article and /profile/[username] to be public
+  const isProtectedPath = !isPublicRoute && 
+    !pathname.startsWith('/article/') && 
+    !pathname.startsWith('/profile/');
+
+  if (!token && isProtectedPath) {
     const url = new URL('/', request.url);
     return NextResponse.redirect(url);
   }
