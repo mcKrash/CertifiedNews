@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 const GUARDIAN_API_KEY = process.env.GUARDIAN_API_KEY || 'test-key';
-const GUARDIAN_API_URL = 'https://open-platform.theguardian.com/api/proxy';
+const GUARDIAN_API_URL = 'https://content.guardianapis.com/search';
 
 // Category mapping
 const CATEGORY_MAPPING = {
