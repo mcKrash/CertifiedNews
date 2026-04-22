@@ -32,8 +32,8 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // Use demo credentials
-      await loginUser('demo@certifiednews.local', 'demo123');
+      // Use demo credentials (seeded regular user)
+      await loginUser('user@certifiednews.com', 'User123!');
       window.location.href = '/home';
     } catch (err: any) {
       setError('Demo login failed. Please use your own credentials.');
