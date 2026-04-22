@@ -26,12 +26,12 @@ const fetchArticles = async (category = 'world', page = 1, pageSize = 10) => {
 
     const response = await axios.get(`${GUARDIAN_API_URL}`, {
       params: {
-        'api-key': GUARDIAN_API_KEY,
+        'api-key': GUARDIAN_API_KEY === 'test-key' ? 'test' : GUARDIAN_API_KEY,
         section: guardianCategory,
         'page-size': pageSize,
         page,
-        'show-fields': 'headline,standfirst,thumbnail,byline,publication',
-        'show-tags': 'contributor',
+        'show-fields': 'all',
+        'show-tags': 'all',
         format: 'json',
       },
     });
@@ -83,12 +83,12 @@ const searchArticles = async (query, page = 1, pageSize = 10) => {
   try {
     const response = await axios.get(`${GUARDIAN_API_URL}`, {
       params: {
-        'api-key': GUARDIAN_API_KEY,
+        'api-key': GUARDIAN_API_KEY === 'test-key' ? 'test' : GUARDIAN_API_KEY,
         q: query,
         'page-size': pageSize,
         page,
-        'show-fields': 'headline,standfirst,thumbnail,byline,publication',
-        'show-tags': 'contributor',
+        'show-fields': 'all',
+        'show-tags': 'all',
         format: 'json',
       },
     });
@@ -140,11 +140,11 @@ const getTrendingArticles = async (pageSize = 10) => {
   try {
     const response = await axios.get(`${GUARDIAN_API_URL}`, {
       params: {
-        'api-key': GUARDIAN_API_KEY,
+        'api-key': GUARDIAN_API_KEY === 'test-key' ? 'test' : GUARDIAN_API_KEY,
         'order-by': 'newest',
         'page-size': pageSize,
-        'show-fields': 'headline,standfirst,thumbnail,byline,publication',
-        'show-tags': 'contributor',
+        'show-fields': 'all',
+        'show-tags': 'all',
         format: 'json',
       },
     });
