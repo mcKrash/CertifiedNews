@@ -1,6 +1,10 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
+// Note: This seed file creates default admin credentials for the WCNA platform.
+// For production use, ensure these credentials are changed immediately after first login.
+// Store credentials securely and never commit them to version control.
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -42,12 +46,12 @@ async function main() {
   console.log('✓ Sources seeded');
 
   // Create Users
-  const hashedPassword = await bcrypt.hash('Admin123!', 10);
+  const hashedPassword = await bcrypt.hash('Admin@2026', 10);
   const reporterPassword = await bcrypt.hash('Reporter123!', 10);
   const userPassword = await bcrypt.hash('User123!', 10);
 
   const users = [
-    { email: 'admin@certifiednews.com', password: hashedPassword, name: 'System Admin', role: 'ADMIN', isVerified: true },
+    { email: 'admin@wcna.com', password: hashedPassword, name: 'System Admin', role: 'ADMIN', isVerified: true },
     { email: 'reporter@certifiednews.com', password: reporterPassword, name: 'Lead Reporter', role: 'REPORTER', isVerified: true },
     { email: 'user@certifiednews.com', password: userPassword, name: 'Regular User', role: 'USER', isVerified: false },
   ];
@@ -59,9 +63,13 @@ async function main() {
       create: user,
     });
   }
-  console.log('✓ Users seeded (Admin: admin@certifiednews.com / Admin123!)');
+  console.log('✓ Users seeded (Admin: admin@wcna.com / Admin@2026)');
 
   console.log('✅ Database seed completed successfully!');
+  console.log('\n📋 Default Admin Credentials:');
+  console.log('   Email: admin@wcna.com');
+  console.log('   Password: Admin@2026');
+  console.log('\n🔗 Admin Dashboard: /admin/dashboard');
 }
 
 main()
