@@ -76,7 +76,7 @@ export default function AgencyRegisterPage() {
         formData.name,
         'AGENCY'
       );
-      setToken(response.token);
+      setToken(response.data.token);
       setStep(2);
     } catch (err: any) {
       setError(err.message || 'Registration failed');

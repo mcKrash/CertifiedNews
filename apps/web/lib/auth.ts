@@ -37,11 +37,9 @@ export const loginUser = async (email: string, password: string): Promise<AuthRe
       throw new Error(data.message || 'Login failed');
     }
 
-    // Store token and user in localStorage and cookie for middleware
     if (data.data.token) {
       localStorage.setItem('token', data.data.token);
       localStorage.setItem('user', JSON.stringify(data.data.user));
-      // Set cookie for middleware (expires in 7 days)
       document.cookie = `token=${data.data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
     }
 
@@ -59,7 +57,8 @@ export const registerUser = async (
   email: string,
   password: string,
   name: string,
-  username: string
+  userType: string = 'REGULAR_USER',
+  username?: string
 ): Promise<AuthResponse> => {
   try {
     const response = await fetch(`${API_URL}/auth/register`, {
@@ -67,7 +66,7 @@ export const registerUser = async (
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password, name, username }),
+      body: JSON.stringify({ email, password, name, userType, username }),
     });
 
     const data = await response.json();
@@ -76,11 +75,9 @@ export const registerUser = async (
       throw new Error(data.message || 'Registration failed');
     }
 
-    // Store token and user in localStorage and cookie for middleware
     if (data.data.token) {
       localStorage.setItem('token', data.data.token);
       localStorage.setItem('user', JSON.stringify(data.data.user));
-      // Set cookie for middleware (expires in 7 days)
       document.cookie = `token=${data.data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
     }
 
@@ -122,7 +119,6 @@ export const logoutUser = (): void => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    // Clear cookie
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   }
 };

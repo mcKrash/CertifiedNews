@@ -73,7 +73,7 @@ export default function JournalistRegisterPage() {
         formData.name,
         'JOURNALIST'
       );
-      setToken(response.token);
+      setToken(response.data.token);
       setStep(2);
     } catch (err: any) {
       setError(err.message || 'Registration failed');

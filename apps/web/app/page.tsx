@@ -144,7 +144,14 @@ export default function LoginPage() {
           {loading ? 'Signing in...' : 'Sign in with Google'}
         </button>
 
-        {/* Sign Up Link */}
+        <Link
+          href="/auth/register"
+          className="block w-full mt-4 px-4 py-3 border rounded-md font-semibold text-center hover:bg-gray-50 transition-colors"
+          style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
+        >
+          Create Account
+        </Link>
+
         <p className="text-center text-sm mt-6" style={{ color: '#7F8C8D' }}>
           Don't have an account?{' '}
           <Link href="/auth/register" style={{ color: '#00B4A0', fontWeight: 'bold' }}>

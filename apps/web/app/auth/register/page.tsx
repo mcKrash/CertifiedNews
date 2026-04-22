@@ -60,9 +60,10 @@ export default function RegisterPage() {
         formData.email,
         formData.password,
         formData.name,
+        'REGULAR_USER',
         formData.username
       );
-      setToken(response.token);
+      setToken(response.data.token);
       setStep(2);
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');

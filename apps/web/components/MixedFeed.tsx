@@ -13,7 +13,7 @@ interface Post {
     name: string;
     username: string;
     avatarUrl?: string;
-    userType: string;
+    userType: 'REGULAR_USER' | 'JOURNALIST' | 'AGENCY';
     isVerified: boolean;
   };
   likes: number;
@@ -34,6 +34,7 @@ interface NewsArticle {
   category: string;
   publishedAt: string;
   url: string;
+  bookmarked?: boolean;
 }
 
 interface FeedItem {
@@ -98,7 +99,7 @@ export default function MixedFeed() {
     fetchFeed(nextPage, selectedCategory);
   };
 
-  const handleLike = async (itemId: string, isPost: boolean) => {
+  const handleLike = async (itemId: string, isPost: boolean): Promise<void> => {
     try {
       const token = localStorage.getItem('token');
       const endpoint = isPost ? '/votes' : '/votes';
@@ -114,16 +115,16 @@ export default function MixedFeed() {
       });
 
       if (response.ok) {
-        // Update local state optimistically
         setFeedItems(prev =>
           prev.map(item => {
-            if (item.data.id === itemId) {
+            if (item.type === 'post' && item.data.id === itemId) {
+              const postData = item.data as Post;
               return {
                 ...item,
                 data: {
-                  ...item.data,
-                  liked: !item.data.liked,
-                  likes: item.data.liked ? item.data.likes - 1 : item.data.likes + 1,
+                  ...postData,
+                  liked: !postData.liked,
+                  likes: postData.liked ? postData.likes - 1 : postData.likes + 1,
                 },
               };
             }
@@ -136,7 +137,7 @@ export default function MixedFeed() {
     }
   };
 
-  const handleBookmark = async (itemId: string, isPost: boolean) => {
+  const handleBookmark = async (itemId: string, isPost: boolean): Promise<void> => {
     try {
       const token = localStorage.getItem('token');
       const payload = isPost ? { postId: itemId } : { articleId: itemId };
@@ -153,12 +154,13 @@ export default function MixedFeed() {
       if (response.ok) {
         setFeedItems(prev =>
           prev.map(item => {
-            if (item.data.id === itemId) {
+            if (item.type === 'post' && item.data.id === itemId) {
+              const postData = item.data as Post;
               return {
                 ...item,
                 data: {
-                  ...item.data,
-                  bookmarked: !item.data.bookmarked,
+                  ...postData,
+                  bookmarked: !postData.bookmarked,
                 },
               };
             }
@@ -171,7 +173,7 @@ export default function MixedFeed() {
     }
   };
 
-  const handleShare = (item: FeedItem) => {
+  const handleShare = async (item: FeedItem): Promise<void> => {
     const text =
       item.type === 'post'
         ? (item.data as Post).content
@@ -214,10 +216,11 @@ export default function MixedFeed() {
             <div key={`${item.type}-${item.data.id}-${index}`}>
               {item.type === 'post' ? (
                 <EnhancedPostCard
-                  post={item.data as Post}
-                  onLike={() => handleLike(item.data.id, true)}
-                  onBookmark={() => handleBookmark(item.data.id, true)}
-                  onShare={() => handleShare(item)}
+                  {...(item.data as Post)}
+                  shares={0}
+                  onLike={async () => handleLike(item.data.id, true)}
+                  onBookmark={async () => handleBookmark(item.data.id, true)}
+                  onShare={async () => handleShare(item)}
                 />
               ) : (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
