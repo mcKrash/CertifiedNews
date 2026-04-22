@@ -51,9 +51,9 @@ async function main() {
   const userPassword = await bcrypt.hash('User123!', 10);
 
   const users = [
-    { email: 'admin@wcna.com', password: hashedPassword, name: 'System Admin', role: 'ADMIN', isVerified: true },
-    { email: 'reporter@certifiednews.com', password: reporterPassword, name: 'Lead Reporter', role: 'REPORTER', isVerified: true },
-    { email: 'user@certifiednews.com', password: userPassword, name: 'Regular User', role: 'USER', isVerified: false },
+    { email: 'admin@wcna.com', username: 'admin', password: hashedPassword, name: 'System Admin', role: 'ADMIN', isVerified: true },
+    { email: 'reporter@certifiednews.com', username: 'reporter', password: reporterPassword, name: 'Lead Reporter', role: 'REPORTER', isVerified: true },
+    { email: 'user@certifiednews.com', username: 'user', password: userPassword, name: 'Regular User', role: 'USER', isVerified: false },
   ];
 
   for (const user of users) {
