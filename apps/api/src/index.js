@@ -35,6 +35,7 @@ app.use('/api/verification', require('./routes/verification'));
 app.use('/api/meta', require('./routes/meta'));
 app.use('/api/support', require('./routes/support'));
 app.use('/api/admin/ai', require('./routes/adminAI'));
+app.use('/api/news', require('./routes/news'));
 
 // Health check
 app.get('/api/health', (req, res) => {
