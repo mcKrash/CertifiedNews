@@ -1,324 +1,379 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  Users,
+  FileText,
+  MessageSquare,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  BarChart3,
+  TrendingUp,
+  ArrowRight,
+} from 'lucide-react';
 import Link from 'next/link';
-import { getToken, getCurrentUser } from '@/lib/auth';
 
-interface ReporterApplication {
+interface DashboardStats {
+  totalUsers: number;
+  totalPosts: number;
+  totalComments: number;
+  pendingApplications: number;
+  verifiedJournalists: number;
+  verifiedAgencies: number;
+  totalArticles: number;
+  reportedContent: number;
+}
+
+interface RecentPost {
   id: string;
-  userId: string;
-  status: string;
-  bio: string;
-  experience: string;
-  portfolio: string;
-  reason: string;
-  submittedAt: string;
+  content: string;
+  author: {
+    id: string;
+    name: string;
+    username: string;
+  };
+  createdAt: string;
+}
+
+interface RecentApplication {
+  id: string;
   user: {
     id: string;
     name: string;
     email: string;
-    createdAt: string;
   };
+  createdAt: string;
 }
 
-interface AdminStats {
-  totalApplications: number;
-  pendingApplications: number;
-  approvedApplications: number;
-  rejectedApplications: number;
+interface DashboardData {
+  stats: DashboardStats;
+  recentPosts: RecentPost[];
+  recentApplications: RecentApplication[];
 }
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export default function AdminDashboard() {
-  const user = getCurrentUser();
-  const [applications, setApplications] = useState<ReporterApplication[]>([]);
-  const [stats, setStats] = useState<AdminStats>({
-    totalApplications: 0,
-    pendingApplications: 0,
-    approvedApplications: 0,
-    rejectedApplications: 0,
-  });
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('PENDING');
-  const [selectedApp, setSelectedApp] = useState<ReporterApplication | null>(null);
-  const [reviewNotes, setReviewNotes] = useState('');
-  const [reviewing, setReviewing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
   useEffect(() => {
-    const token = getToken();
-    if (!token || user?.role !== 'ADMIN') {
-      window.location.href = '/home';
-      return;
-    }
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
 
-    fetchApplications();
-  }, [user, filter]);
+        if (!token) {
+          setError('Not authenticated');
+          return;
+        }
 
-  const fetchApplications = async () => {
-    try {
-      const token = getToken();
-      const response = await fetch(
-        `${API_URL}/reporter-applications?status=${filter}&limit=50`,
-        {
+        const response = await fetch(`${API_URL}/admin/dashboard/stats`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch dashboard data');
         }
-      );
 
-      const data = await response.json();
-      if (response.ok) {
-        setApplications(data.data);
-        updateStats(data.data);
+        const result = await response.json();
+        setData(result.data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Dashboard fetch error:', err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching applications:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const updateStats = (apps: ReporterApplication[]) => {
-    const allApps = apps;
-    setStats({
-      totalApplications: allApps.length,
-      pendingApplications: allApps.filter((a) => a.status === 'PENDING').length,
-      approvedApplications: allApps.filter((a) => a.status === 'APPROVED').length,
-      rejectedApplications: allApps.filter((a) => a.status === 'REJECTED').length,
-    });
-  };
-
-  const handleReview = async (applicationId: string, status: 'APPROVED' | 'REJECTED') => {
-    setReviewing(true);
-    try {
-      const token = getToken();
-      const response = await fetch(`${API_URL}/reporter-applications/${applicationId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          status,
-          notes: reviewNotes,
-        }),
-      });
-
-      if (response.ok) {
-        setSelectedApp(null);
-        setReviewNotes('');
-        fetchApplications();
-      }
-    } catch (err) {
-      console.error('Error reviewing application:', err);
-    } finally {
-      setReviewing(false);
-    }
-  };
+    fetchDashboardData();
+  }, [API_URL]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto mb-4"></div>
-          <p>Loading admin dashboard...</p>
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <Loader2 className="animate-spin text-teal-500" size={40} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+          {error}
         </div>
       </div>
     );
   }
 
+  if (!data) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-700">
+          No data available
+        </div>
+      </div>
+    );
+  }
+
+  const stats = data.stats;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Header */}
+        <div className="mb-8">
           <Link href="/home" className="text-teal-600 hover:underline mb-4 inline-block">
             ← Back to Home
           </Link>
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-2">Manage reporter applications and platform moderation</p>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <p className="text-gray-600 text-sm font-semibold">Total Applications</p>
-            <p className="text-3xl font-bold mt-2">{stats.totalApplications}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-yellow-500">
-            <p className="text-gray-600 text-sm font-semibold">Pending</p>
-            <p className="text-3xl font-bold mt-2 text-yellow-600">{stats.pendingApplications}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-green-500">
-            <p className="text-gray-600 text-sm font-semibold">Approved</p>
-            <p className="text-3xl font-bold mt-2 text-green-600">{stats.approvedApplications}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-red-500">
-            <p className="text-gray-600 text-sm font-semibold">Rejected</p>
-            <p className="text-3xl font-bold mt-2 text-red-600">{stats.rejectedApplications}</p>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <p className="text-gray-600 mt-2">
+            Platform overview and management tools
+          </p>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-4 mb-8 border-b">
-          {['PENDING', 'APPROVED', 'REJECTED'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
-                filter === status
-                  ? 'border-teal-600 text-teal-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
-
-        {/* Applications List */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          {applications.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Applicant</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Email</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Submitted</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {applications.map((app) => (
-                    <tr key={app.id} className="border-b hover:bg-gray-50">
-                      <td className="px-6 py-4 font-semibold">{app.user.name}</td>
-                      <td className="px-6 py-4 text-gray-600">{app.user.email}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {new Date(app.submittedAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className="px-3 py-1 rounded-full text-sm font-semibold"
-                          style={{
-                            backgroundColor:
-                              app.status === 'APPROVED'
-                                ? '#D4EDDA'
-                                : app.status === 'REJECTED'
-                                ? '#F8D7DA'
-                                : '#FFF3CD',
-                            color:
-                              app.status === 'APPROVED'
-                                ? '#155724'
-                                : app.status === 'REJECTED'
-                                ? '#721C24'
-                                : '#856404',
-                          }}
-                        >
-                          {app.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => setSelectedApp(app)}
-                          className="text-teal-600 hover:underline font-semibold"
-                        >
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="p-8 text-center text-gray-500">
-              No applications found for this filter.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Review Modal */}
-      {selectedApp && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
-            <div className="p-6 border-b sticky top-0 bg-white">
-              <h2 className="text-2xl font-bold">Review Application</h2>
-              <p className="text-gray-600 mt-1">{selectedApp.user.name}</p>
-            </div>
-
-            <div className="p-6 space-y-4">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {/* Total Users */}
+          <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-teal-500 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold mb-2">Bio</h3>
-                <p className="text-gray-700 text-sm">{selectedApp.bio}</p>
+                <p className="text-gray-600 text-sm font-medium">Total Users</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">
+                  {stats.totalUsers.toLocaleString()}
+                </p>
               </div>
+              <Users className="text-teal-500" size={32} />
+            </div>
+          </div>
 
+          {/* Total Posts */}
+          <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-blue-500 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold mb-2">Experience</h3>
-                <p className="text-gray-700 text-sm">{selectedApp.experience}</p>
+                <p className="text-gray-600 text-sm font-medium">Total Posts</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">
+                  {stats.totalPosts.toLocaleString()}
+                </p>
               </div>
+              <FileText className="text-blue-500" size={32} />
+            </div>
+          </div>
 
-              {selectedApp.portfolio && (
-                <div>
-                  <h3 className="font-semibold mb-2">Portfolio</h3>
-                  <a
-                    href={selectedApp.portfolio}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-teal-600 hover:underline text-sm"
+          {/* Total Comments */}
+          <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-purple-500 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">
+                  Total Comments
+                </p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">
+                  {stats.totalComments.toLocaleString()}
+                </p>
+              </div>
+              <MessageSquare className="text-purple-500" size={32} />
+            </div>
+          </div>
+
+          {/* Pending Applications */}
+          <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-orange-500 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">
+                  Pending Applications
+                </p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">
+                  {stats.pendingApplications}
+                </p>
+              </div>
+              <AlertCircle className="text-orange-500" size={32} />
+            </div>
+          </div>
+        </div>
+
+        {/* Secondary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {/* Verified Journalists */}
+          <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="text-green-500" size={24} />
+              <div>
+                <p className="text-gray-600 text-sm">Verified Journalists</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.verifiedJournalists}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Verified Agencies */}
+          <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="text-green-500" size={24} />
+              <div>
+                <p className="text-gray-600 text-sm">Verified Agencies</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.verifiedAgencies}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Articles */}
+          <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <BarChart3 className="text-indigo-500" size={24} />
+              <div>
+                <p className="text-gray-600 text-sm">Total Articles</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.totalArticles}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Reported Content */}
+          <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="text-red-500" size={24} />
+              <div>
+                <p className="text-gray-600 text-sm">Reported Content</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.reportedContent}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Recent Posts */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Recent Posts
+            </h2>
+            <div className="space-y-4">
+              {data.recentPosts.length === 0 ? (
+                <p className="text-gray-500 text-sm">No recent posts</p>
+              ) : (
+                data.recentPosts.map(post => (
+                  <div
+                    key={post.id}
+                    className="border-l-4 border-gray-200 pl-4 py-2 hover:border-teal-500 transition-colors"
                   >
-                    {selectedApp.portfolio}
-                  </a>
-                </div>
+                    <p className="text-sm text-gray-700 line-clamp-2">
+                      {post.content}
+                    </p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-gray-500">
+                        By {post.author.name}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(post.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                ))
               )}
-
-              <div>
-                <h3 className="font-semibold mb-2">Reason</h3>
-                <p className="text-gray-700 text-sm">{selectedApp.reason}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2">Review Notes</label>
-                <textarea
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                  placeholder="Add notes for the applicant..."
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
-                  rows={3}
-                />
-              </div>
             </div>
+            <Link href="/admin/moderation">
+              <button className="w-full mt-4 py-2 text-teal-500 hover:text-teal-600 font-medium text-sm flex items-center justify-center gap-2">
+                View All Posts <ArrowRight size={16} />
+              </button>
+            </Link>
+          </div>
 
-            <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end sticky bottom-0">
-              <button
-                onClick={() => setSelectedApp(null)}
-                className="px-4 py-2 border rounded-lg font-semibold hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleReview(selectedApp.id, 'REJECTED')}
-                disabled={reviewing}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50"
-              >
-                {reviewing ? 'Processing...' : 'Reject'}
-              </button>
-              <button
-                onClick={() => handleReview(selectedApp.id, 'APPROVED')}
-                disabled={reviewing}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
-              >
-                {reviewing ? 'Processing...' : 'Approve'}
-              </button>
+          {/* Pending Applications */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Pending Applications
+            </h2>
+            <div className="space-y-4">
+              {data.recentApplications.length === 0 ? (
+                <p className="text-gray-500 text-sm">No pending applications</p>
+              ) : (
+                data.recentApplications.map(app => (
+                  <div
+                    key={app.id}
+                    className="border-l-4 border-orange-200 pl-4 py-2 hover:border-orange-500 transition-colors"
+                  >
+                    <p className="text-sm font-medium text-gray-900">
+                      {app.user.name}
+                    </p>
+                    <p className="text-xs text-gray-500">{app.user.email}</p>
+                    <div className="flex gap-2 mt-3">
+                      <button className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors">
+                        Approve
+                      </button>
+                      <button className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors">
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
+            <Link href="/admin/applications">
+              <button className="w-full mt-4 py-2 text-teal-500 hover:text-teal-600 font-medium text-sm flex items-center justify-center gap-2">
+                View All Applications <ArrowRight size={16} />
+              </button>
+            </Link>
           </div>
         </div>
-      )}
+
+        {/* Management Sections */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Users Management */}
+          <Link href="/admin/users">
+            <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer">
+              <Users className="text-teal-500 mb-3" size={28} />
+              <h3 className="text-lg font-bold text-gray-900">User Management</h3>
+              <p className="text-gray-600 text-sm mt-2">
+                Manage users, verify accounts, and handle suspensions
+              </p>
+              <div className="mt-4 text-teal-500 hover:text-teal-600 font-medium text-sm flex items-center gap-1">
+                Go to Management <ArrowRight size={16} />
+              </div>
+            </div>
+          </Link>
+
+          {/* Content Moderation */}
+          <Link href="/admin/moderation">
+            <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer">
+              <AlertCircle className="text-orange-500 mb-3" size={28} />
+              <h3 className="text-lg font-bold text-gray-900">
+                Content Moderation
+              </h3>
+              <p className="text-gray-600 text-sm mt-2">
+                Review and moderate reported content and posts
+              </p>
+              <div className="mt-4 text-teal-500 hover:text-teal-600 font-medium text-sm flex items-center gap-1">
+                Go to Moderation <ArrowRight size={16} />
+              </div>
+            </div>
+          </Link>
+
+          {/* Support Tickets */}
+          <Link href="/admin/tickets">
+            <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer">
+              <MessageSquare className="text-purple-500 mb-3" size={28} />
+              <h3 className="text-lg font-bold text-gray-900">Support Tickets</h3>
+              <p className="text-gray-600 text-sm mt-2">
+                Manage and resolve user support requests
+              </p>
+              <div className="mt-4 text-teal-500 hover:text-teal-600 font-medium text-sm flex items-center gap-1">
+                Go to Tickets <ArrowRight size={16} />
+              </div>
+            </div>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
