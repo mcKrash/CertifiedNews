@@ -52,4 +52,11 @@ router.post('/journalist-profile', verifyToken, authController.saveJournalistPro
  */
 router.post('/agency-profile', verifyToken, authController.saveAgencyProfile);
 
+/**
+ * @route   POST /api/auth/google/callback
+ * @desc    Google OAuth callback handler
+ * @access  Public
+ */
+router.post('/google/callback', authController.googleCallback);
+
 module.exports = router;

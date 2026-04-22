@@ -27,18 +27,16 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      // Use demo credentials (seeded regular user)
-      await loginUser('user@certifiednews.com', 'User123!');
-      window.location.href = '/home';
-    } catch (err: any) {
-      setError('Demo login failed. Please use your own credentials.');
-      setLoading(false);
-    }
+  const handleGoogleLogin = () => {
+    // Google OAuth login - redirect to Google consent screen
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+    const redirectUri = `${window.location.origin}/auth/google/callback`;
+    const scope = 'openid profile email';
+    const responseType = 'code';
+    
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&scope=${encodeURIComponent(scope)}`;
+    
+    window.location.href = googleAuthUrl;
   };
 
   return (
@@ -134,16 +132,16 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Demo Login */}
+        {/* Google Login */}
         <button
           type="button"
-          onClick={handleDemoLogin}
+          onClick={handleGoogleLogin}
           disabled={loading}
           className="w-full px-4 py-3 border rounded-md font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors disabled:opacity-50"
           style={{ borderColor: '#E0E6ED', color: '#2C3E50' }}
         >
-          <span>👤</span>
-          {loading ? 'Signing in...' : 'Try Demo Account'}
+          <span>🔵</span>
+          {loading ? 'Signing in...' : 'Sign in with Google'}
         </button>
 
         {/* Sign Up Link */}

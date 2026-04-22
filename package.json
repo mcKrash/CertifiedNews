@@ -6,6 +6,7 @@
     "dev:api": "npm --workspace=apps/api run dev",
     "dev:web": "npm --workspace=apps/web run dev",
     "build": "turbo run build",
+    "start": "npm --workspace=apps/api start",
     "lint": "turbo run lint"
   },
   "devDependencies": {

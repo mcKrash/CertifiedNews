@@ -486,6 +486,108 @@ const verifyEmail = async (req, res) => {
   }
 };
 
+/**
+ * Google OAuth callback handler
+ */
+const googleCallback = async (req, res) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Authorization code is required',
+      });
+    }
+
+    // Exchange code for tokens via Google
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: `${process.env.FRONTEND_URL}/auth/google/callback`,
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      throw new Error('Failed to exchange code for tokens');
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // Get user info from Google
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!userInfoResponse.ok) {
+      throw new Error('Failed to fetch user info from Google');
+    }
+
+    const googleUser = await userInfoResponse.json();
+
+    // Find or create user
+    let user = await prisma.user.findUnique({
+      where: { email: googleUser.email },
+    });
+
+    if (!user) {
+      // Create new user from Google info
+      const username = googleUser.email.split('@')[0];
+      user = await prisma.user.create({
+        data: {
+          email: googleUser.email,
+          username,
+          name: googleUser.name || googleUser.email,
+          avatarUrl: googleUser.picture,
+          emailVerified: googleUser.verified_email || false,
+          role: 'USER',
+          userType: 'REGULAR_USER',
+          password: null, // No password for OAuth users
+        },
+      });
+    } else {
+      // Update existing user with Google info if needed
+      if (!user.avatarUrl && googleUser.picture) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { avatarUrl: googleUser.picture },
+        });
+      }
+    }
+
+    // Generate JWT token
+    const token = generateToken(user);
+
+    res.status(200).json({
+      success: true,
+      message: 'Google authentication successful',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        username: user.username,
+        userType: user.userType,
+        role: user.role,
+        avatarUrl: user.avatarUrl,
+      },
+    });
+  } catch (error) {
+    console.error('Google callback error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Google authentication failed',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -495,4 +597,5 @@ module.exports = {
   saveAgencyProfile,
   verifyEmail,
   generateToken,
+  googleCallback,
 };
