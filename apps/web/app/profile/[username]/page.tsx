@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Heart,
   MessageCircle,
   Share2,
-  MapPin,
-  Link as LinkIcon,
   Calendar,
   Loader2,
   Edit2,
@@ -20,19 +18,20 @@ interface UserProfile {
   name: string;
   username: string;
   email: string;
-  bio?: string;
-  avatarUrl?: string;
-  coverUrl?: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
   userType: string;
+  role: string;
   isVerified: boolean;
-  location?: string;
-  website?: string;
+  emailVerified: boolean;
   joinedDate: string;
   postsCount: number;
   followersCount: number;
   followingCount: number;
   isFollowing: boolean;
   isCurrentUser: boolean;
+  topicsOfInterest: string[];
+  preferredLanguage: string;
 }
 
 interface Post {
@@ -44,6 +43,8 @@ interface Post {
   createdAt: string;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://certifiednews.onrender.com/api';
+
 export default function ProfilePage() {
   const params = useParams();
   const username = params.username as string;
@@ -52,11 +53,7 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'posts' | 'followers' | 'following'>(
-    'posts'
-  );
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+  const [activeTab, setActiveTab] = useState<'posts' | 'details'>('posts');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -75,17 +72,16 @@ export default function ProfilePage() {
         const result = await response.json();
         setProfile(result.data);
 
-        // Fetch user activity
-        const activityResponse = await fetch(
-          `${API_URL}/profiles/${username}/activity?page=1&limit=10`
-        );
+        const activityResponse = await fetch(`${API_URL}/profiles/${username}/activity?page=1&limit=10`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
         if (activityResponse.ok) {
           const activityResult = await activityResponse.json();
           setPosts(activityResult.data || []);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Profile fetch error:', err);
       } finally {
         setLoading(false);
       }
@@ -94,36 +90,37 @@ export default function ProfilePage() {
     if (username) {
       fetchProfile();
     }
-  }, [username, API_URL]);
+  }, [username]);
 
   const handleFollow = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
+      if (!token || !profile) {
         alert('Please log in to follow users');
         return;
       }
 
-      const response = await fetch(`${API_URL}/profiles/${profile?.id}/follow`, {
+      const response = await fetch(`${API_URL}/profiles/${profile.id}/follow`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (response.ok) {
-        setProfile(prev =>
-          prev
-            ? {
-                ...prev,
-                isFollowing: !prev.isFollowing,
-                followersCount: prev.isFollowing
-                  ? prev.followersCount - 1
-                  : prev.followersCount + 1,
-              }
-            : null
-        );
+      if (!response.ok) {
+        throw new Error('Failed to update follow status');
       }
+
+      const result = await response.json();
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              isFollowing: result.following,
+              followersCount: result.following ? prev.followersCount + 1 : prev.followersCount - 1,
+            }
+          : prev
+      );
     } catch (err) {
       console.error('Follow error:', err);
     }
@@ -149,82 +146,41 @@ export default function ProfilePage() {
 
   return (
     <div className="w-full bg-gray-50 min-h-screen">
-      {/* Cover Image */}
-      <div className="h-48 bg-gradient-to-r from-teal-500 to-teal-600">
-        {profile.coverUrl && (
-          <img
-            src={profile.coverUrl}
-            alt="Cover"
-            className="w-full h-full object-cover"
-          />
-        )}
-      </div>
-
-      {/* Profile Header */}
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-sm -mt-16 relative z-10 p-6 mb-6">
-          <div className="flex items-start justify-between gap-6">
-            {/* Avatar and Info */}
+      <div className="max-w-4xl mx-auto px-4 py-10">
+        <div className="bg-white rounded-lg shadow-sm relative z-10 p-6 mb-6">
+          <div className="flex items-start justify-between gap-6 flex-col md:flex-row">
             <div className="flex items-start gap-4">
               <img
-                src={
-                  profile.avatarUrl ||
-                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`
-                }
+                src={profile.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${profile.username}`}
                 alt={profile.name}
-                className="w-24 h-24 rounded-full border-4 border-white shadow-md"
+                className="w-24 h-24 rounded-full border-4 border-white shadow-md bg-gray-50"
               />
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    {profile.name}
-                  </h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl font-bold text-gray-900">{profile.name}</h1>
                   {profile.isVerified && (
                     <span className="bg-teal-100 text-teal-700 px-2 py-1 rounded-full text-xs font-medium">
-                      ✓ Verified
+                      Verified Profile
                     </span>
                   )}
                   <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs font-medium">
-                    {profile.userType}
+                    {profile.userType.replace(/_/g, ' ')}
+                  </span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${profile.emailVerified ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {profile.emailVerified ? 'Email Verified' : 'Email Pending'}
                   </span>
                 </div>
                 <p className="text-gray-500">@{profile.username}</p>
-                {profile.bio && (
-                  <p className="text-gray-700 mt-2 max-w-md">{profile.bio}</p>
-                )}
-
-                {/* Profile Details */}
+                {profile.bio && <p className="text-gray-700 mt-2 max-w-md">{profile.bio}</p>}
                 <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-600">
-                  {profile.location && (
-                    <div className="flex items-center gap-1">
-                      <MapPin size={16} />
-                      {profile.location}
-                    </div>
-                  )}
-                  {profile.website && (
-                    <a
-                      href={profile.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-teal-500 hover:text-teal-600"
-                    >
-                      <LinkIcon size={16} />
-                      Website
-                    </a>
-                  )}
                   <div className="flex items-center gap-1">
                     <Calendar size={16} />
-                    Joined{' '}
-                    {new Date(profile.joinedDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                    })}
+                    Joined {new Date(profile.joinedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex gap-2">
               {profile.isCurrentUser ? (
                 <button className="flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-full hover:bg-teal-600 transition-colors">
@@ -234,11 +190,7 @@ export default function ProfilePage() {
               ) : (
                 <button
                   onClick={handleFollow}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
-                    profile.isFollowing
-                      ? 'bg-gray-200 text-gray-900 hover:bg-gray-300'
-                      : 'bg-teal-500 text-white hover:bg-teal-600'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${profile.isFollowing ? 'bg-gray-200 text-gray-900 hover:bg-gray-300' : 'bg-teal-500 text-white hover:bg-teal-600'}`}
                 >
                   {profile.isFollowing ? (
                     <>
@@ -256,69 +208,48 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Stats */}
           <div className="flex gap-8 mt-6 pt-6 border-t border-gray-200">
             <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">
-                {profile.postsCount}
-              </div>
+              <div className="text-2xl font-bold text-gray-900">{profile.postsCount}</div>
               <div className="text-sm text-gray-600">Posts</div>
             </div>
-            <button className="text-center hover:opacity-75 transition-opacity">
-              <div className="text-2xl font-bold text-gray-900">
-                {profile.followersCount}
-              </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">{profile.followersCount}</div>
               <div className="text-sm text-gray-600">Followers</div>
-            </button>
-            <button className="text-center hover:opacity-75 transition-opacity">
-              <div className="text-2xl font-bold text-gray-900">
-                {profile.followingCount}
-              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">{profile.followingCount}</div>
               <div className="text-sm text-gray-600">Following</div>
-            </button>
+            </div>
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="bg-white rounded-lg shadow-sm mb-6">
           <div className="flex border-b border-gray-200">
-            {(['posts', 'followers', 'following'] as const).map(tab => (
+            {(['posts', 'details'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-4 text-center font-medium transition-colors ${
-                  activeTab === tab
-                    ? 'text-teal-500 border-b-2 border-teal-500'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === tab ? 'text-teal-500 border-b-2 border-teal-500' : 'text-gray-600 hover:text-gray-900'}`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </div>
 
-          {/* Tab Content */}
           <div className="p-6">
             {activeTab === 'posts' && (
               <div className="space-y-4">
                 {posts.length === 0 ? (
                   <p className="text-center text-gray-500 py-8">No posts yet</p>
                 ) : (
-                  posts.map(post => (
-                    <div
-                      key={post.id}
-                      className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
-                    >
+                  posts.map((post) => (
+                    <div key={post.id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                       <p className="text-gray-900 mb-3">{post.content}</p>
                       {post.images && post.images.length > 0 && (
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           {post.images.map((img, idx) => (
-                            <img
-                              key={idx}
-                              src={img}
-                              alt={`Post image ${idx + 1}`}
-                              className="rounded-lg w-full h-32 object-cover"
-                            />
+                            <img key={idx} src={img} alt={`Post image ${idx + 1}`} className="rounded-lg w-full h-32 object-cover" />
                           ))}
                         </div>
                       )}
@@ -341,15 +272,30 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {activeTab === 'followers' && (
-              <div className="text-center text-gray-500 py-8">
-                Followers list coming soon
-              </div>
-            )}
-
-            {activeTab === 'following' && (
-              <div className="text-center text-gray-500 py-8">
-                Following list coming soon
+            {activeTab === 'details' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Account Type</h3>
+                  <p className="text-gray-700">{profile.userType.replace(/_/g, ' ')}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Preferred Language</h3>
+                  <p className="text-gray-700 uppercase">{profile.preferredLanguage}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Interests</h3>
+                  {profile.topicsOfInterest.length === 0 ? (
+                    <p className="text-gray-500">No interests saved yet.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {profile.topicsOfInterest.map((topic) => (
+                        <span key={topic} className="px-3 py-1 rounded-full bg-teal-50 text-teal-700 text-sm font-medium">
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

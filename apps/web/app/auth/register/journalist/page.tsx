@@ -6,11 +6,17 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { registerUser } from '@/lib/auth';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://certifiednews.onrender.com/api';
+const AVATAR_STYLES = ['adventurer', 'avataaars', 'bottts', 'croodles', 'fun-emoji', 'lorelei', 'micah', 'miniavs', 'notionists', 'open-peeps', 'personas', 'pixel-art'];
+const TOPICS = ['Politics', 'Technology', 'Sports', 'Business', 'Entertainment', 'Science', 'Health', 'World News'];
+
 export default function JournalistRegisterPage() {
   const router = useRouter();
-  const [step, setStep] = useState(1); // 1: Registration, 2: Profile, 3: Preferences
+  const [step, setStep] = useState(1);
+  const [verificationMessage, setVerificationMessage] = useState('');
   const [formData, setFormData] = useState({
     name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -23,34 +29,26 @@ export default function JournalistRegisterPage() {
   const [preferencesData, setPreferencesData] = useState({
     topicsOfInterest: [] as string[],
     preferredLanguage: 'en',
+    avatarStyle: 'adventurer',
   });
-  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [token, setToken] = useState('');
 
-  const topics = ['Politics', 'Technology', 'Sports', 'Business', 'Entertainment', 'Science', 'Health', 'World News'];
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (step === 1) {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    } else if (step === 2) {
-      setProfileData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
+      return;
     }
-  };
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setProfilePhoto(e.target.files[0]);
-    }
+    setProfileData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleTopicToggle = (topic: string) => {
-    setPreferencesData(prev => ({
+    setPreferencesData((prev) => ({
       ...prev,
       topicsOfInterest: prev.topicsOfInterest.includes(topic)
-        ? prev.topicsOfInterest.filter(t => t !== topic)
+        ? prev.topicsOfInterest.filter((item) => item !== topic)
         : [...prev.topicsOfInterest, topic],
     }));
   };
@@ -59,6 +57,7 @@ export default function JournalistRegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setVerificationMessage('');
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -67,13 +66,13 @@ export default function JournalistRegisterPage() {
     }
 
     try {
-      const response = await registerUser(
-        formData.email,
-        formData.password,
-        formData.name,
-        'JOURNALIST'
-      );
+      const response = await registerUser(formData.email, formData.password, formData.name, 'JOURNALIST', formData.username);
       setToken(response.data.token);
+      setVerificationMessage(
+        response.data.verificationEmailSent
+          ? 'Verification email sent successfully. Finish your journalist setup, then verify your inbox.'
+          : response.data.verificationEmailReason || 'Your account was created, but the verification email still needs attention.'
+      );
       setStep(2);
     } catch (err: any) {
       setError(err.message || 'Registration failed');
@@ -88,63 +87,49 @@ export default function JournalistRegisterPage() {
     setError('');
 
     try {
-      let profilePhotoUrl = '';
-      
-      if (profilePhoto) {
-        const formDataPhoto = new FormData();
-        formDataPhoto.append('file', profilePhoto);
-        
-        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          body: formDataPhoto,
-        });
+      const avatarUrl = `https://api.dicebear.com/7.x/${preferencesData.avatarStyle}/svg?seed=${encodeURIComponent(formData.email)}`;
 
-        if (!uploadResponse.ok) {
-          throw new Error('Failed to upload photo');
-        }
-
-        const uploadData = await uploadResponse.json();
-        profilePhotoUrl = uploadData.url;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/journalist-profile`, {
+      const profileResponse = await fetch(`${API_URL}/auth/journalist-profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           ...profileData,
-          topicsOfInterest: preferencesData.topicsOfInterest,
-          preferredLanguage: preferencesData.preferredLanguage,
+          avatarUrl,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to save profile');
+      const profileResult = await profileResponse.json();
+      if (!profileResponse.ok) {
+        throw new Error(profileResult.message || 'Failed to save journalist profile');
       }
 
-      setStep(3);
-    } catch (err: any) {
-      setError(err.message || 'Failed to save profile');
-    } finally {
-      setLoading(false);
-    }
-  };
+      const preferencesResponse = await fetch(`${API_URL}/auth/preferences`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          topicsOfInterest: preferencesData.topicsOfInterest,
+          preferredLanguage: preferencesData.preferredLanguage,
+          avatarUrl,
+        }),
+      });
 
-  const handlePreferencesSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+      const preferencesResult = await preferencesResponse.json();
+      if (!preferencesResponse.ok) {
+        throw new Error(preferencesResult.message || 'Failed to save preferences');
+      }
 
-    try {
       localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(preferencesResult.data.user));
+      document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
       router.push('/home');
     } catch (err: any) {
-      setError(err.message || 'Failed to complete setup');
+      setError(err.message || 'Failed to complete journalist setup');
     } finally {
       setLoading(false);
     }
@@ -152,14 +137,20 @@ export default function JournalistRegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white px-4 py-12">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-3xl">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <Image src="/logo.png" alt="WCNA Logo" width={100} height={100} className="rounded" />
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Register as Journalist</h2>
-          <p className="text-gray-600">Step {step} of 3</p>
+          <p className="text-gray-600">Step {step} of 2</p>
         </div>
+
+        {verificationMessage && (
+          <div className="p-3 mb-6 rounded-md text-sm" style={{ backgroundColor: '#E8F8F5', color: '#00B4A0' }}>
+            {verificationMessage}
+          </div>
+        )}
 
         {error && (
           <div className="p-3 mb-6 rounded-md text-red-600 text-sm" style={{ backgroundColor: '#FFE5E5' }}>
@@ -169,157 +160,51 @@ export default function JournalistRegisterPage() {
 
         {step === 1 && (
           <form onSubmit={handleRegistrationSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-              <input
-                type="text"
-                name="name"
-                required
-                value={formData.name}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#00B4A0]"
-                style={{ borderColor: '#E0E6ED' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                type="email"
-                name="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#00B4A0]"
-                style={{ borderColor: '#E0E6ED' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
-                type="password"
-                name="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#00B4A0]"
-                style={{ borderColor: '#E0E6ED' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-              <input
-                type="password"
-                name="confirmPassword"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#00B4A0]"
-                style={{ borderColor: '#E0E6ED' }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2 px-4 bg-[#00B4A0] text-white rounded-md font-medium hover:bg-[#009985] disabled:opacity-50"
-            >
-              {loading ? 'Creating Account...' : 'Next'}
+            <input type="text" name="name" required placeholder="Full Name" value={formData.name} onChange={handleChange} className="w-full px-4 py-3 border rounded-md" style={{ borderColor: '#E0E6ED' }} />
+            <input type="text" name="username" required placeholder="Username" value={formData.username} onChange={handleChange} className="w-full px-4 py-3 border rounded-md" style={{ borderColor: '#E0E6ED' }} />
+            <input type="email" name="email" required placeholder="Email" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 border rounded-md" style={{ borderColor: '#E0E6ED' }} />
+            <input type="password" name="password" required placeholder="Password" value={formData.password} onChange={handleChange} className="w-full px-4 py-3 border rounded-md" style={{ borderColor: '#E0E6ED' }} />
+            <input type="password" name="confirmPassword" required placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} className="w-full px-4 py-3 border rounded-md" style={{ borderColor: '#E0E6ED' }} />
+            <button type="submit" disabled={loading} className="w-full py-3 px-4 bg-[#00B4A0] text-white rounded-md font-medium hover:bg-[#009985] disabled:opacity-50">
+              {loading ? 'Creating Account...' : 'Continue'}
             </button>
           </form>
         )}
 
         {step === 2 && (
-          <form onSubmit={handleProfileSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Profile Photo (Required)</label>
-              <input
-                type="file"
-                accept="image/*"
-                required
-                onChange={handlePhotoChange}
-                className="w-full px-4 py-2 border rounded-md"
-                style={{ borderColor: '#E0E6ED' }}
-              />
-              <p className="text-xs text-gray-500 mt-1">Minimum 200x200px</p>
+          <form onSubmit={handleProfileSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input type="text" name="beat" placeholder="Beat or specialty" value={profileData.beat} onChange={handleChange} className="w-full px-4 py-3 border rounded-md" style={{ borderColor: '#E0E6ED' }} />
+              <input type="text" name="affiliatedOrg" placeholder="Affiliated organization" value={profileData.affiliatedOrg} onChange={handleChange} className="w-full px-4 py-3 border rounded-md" style={{ borderColor: '#E0E6ED' }} />
             </div>
+            <input type="url" name="portfolioUrl" placeholder="Portfolio URL" value={profileData.portfolioUrl} onChange={handleChange} className="w-full px-4 py-3 border rounded-md" style={{ borderColor: '#E0E6ED' }} />
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Beat/Specialty</label>
-              <input
-                type="text"
-                name="beat"
-                placeholder="e.g., Politics, Sports, Technology"
-                value={profileData.beat}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#00B4A0]"
-                style={{ borderColor: '#E0E6ED' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Affiliated Organization</label>
-              <input
-                type="text"
-                name="affiliatedOrg"
-                placeholder="e.g., The New York Times"
-                value={profileData.affiliatedOrg}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#00B4A0]"
-                style={{ borderColor: '#E0E6ED' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Portfolio URL</label>
-              <input
-                type="url"
-                name="portfolioUrl"
-                placeholder="https://yourportfolio.com"
-                value={profileData.portfolioUrl}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#00B4A0]"
-                style={{ borderColor: '#E0E6ED' }}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="flex-1 py-2 px-4 border rounded-md font-medium hover:bg-gray-50"
-                style={{ borderColor: '#E0E6ED' }}
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 py-2 px-4 bg-[#00B4A0] text-white rounded-md font-medium hover:bg-[#009985] disabled:opacity-50"
-              >
-                {loading ? 'Saving...' : 'Next'}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {step === 3 && (
-          <form onSubmit={handlePreferencesSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-4">Topics of Interest</label>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Choose your avatar</label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {topics.map(topic => (
+                {AVATAR_STYLES.map((style) => (
+                  <button
+                    key={style}
+                    type="button"
+                    onClick={() => setPreferencesData((prev) => ({ ...prev, avatarStyle: style }))}
+                    className={`p-3 rounded-md border-2 ${preferencesData.avatarStyle === style ? 'border-[#00B4A0] bg-[#E8F8F5]' : 'border-gray-200'}`}
+                  >
+                    <img src={`https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(formData.email)}`} alt={style} className="w-full h-20 object-contain" />
+                    <p className="text-xs mt-2 capitalize">{style}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Topics of interest</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {TOPICS.map((topic) => (
                   <button
                     key={topic}
                     type="button"
                     onClick={() => handleTopicToggle(topic)}
-                    className={`py-2 px-4 rounded-md border-2 transition font-medium ${
-                      preferencesData.topicsOfInterest.includes(topic)
-                        ? 'border-[#00B4A0] bg-[#00B4A0] text-white'
-                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}
+                    className={`py-2 px-4 rounded-md border-2 font-medium ${preferencesData.topicsOfInterest.includes(topic) ? 'border-[#00B4A0] bg-[#00B4A0] text-white' : 'border-gray-200 text-gray-700'}`}
                   >
                     {topic}
                   </button>
@@ -327,54 +212,28 @@ export default function JournalistRegisterPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Language</label>
-              <select
-                value={preferencesData.preferredLanguage}
-                onChange={(e) => setPreferencesData(prev => ({ ...prev, preferredLanguage: e.target.value }))}
-                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#00B4A0]"
-                style={{ borderColor: '#E0E6ED' }}
-              >
-                <option value="en">English</option>
-                <option value="es">Spanish</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
-                <option value="pt">Portuguese</option>
-                <option value="ar">Arabic</option>
-                <option value="zh">Chinese</option>
-                <option value="ja">Japanese</option>
-              </select>
-            </div>
-
-            <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
-              ℹ️ Your journalist account is pending verification. You can start posting immediately, but your posts will be labeled as "Unverified Journalist" until approved by our admin team.
-            </p>
+            <select value={preferencesData.preferredLanguage} onChange={(e) => setPreferencesData((prev) => ({ ...prev, preferredLanguage: e.target.value }))} className="w-full px-4 py-3 border rounded-md" style={{ borderColor: '#E0E6ED' }}>
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="pt">Portuguese</option>
+              <option value="ar">Arabic</option>
+            </select>
 
             <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="flex-1 py-2 px-4 border rounded-md font-medium hover:bg-gray-50"
-                style={{ borderColor: '#E0E6ED' }}
-              >
+              <button type="button" onClick={() => setStep(1)} className="flex-1 py-3 px-4 border rounded-md font-medium" style={{ borderColor: '#E0E6ED' }}>
                 Back
               </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 py-2 px-4 bg-[#00B4A0] text-white rounded-md font-medium hover:bg-[#009985] disabled:opacity-50"
-              >
-                {loading ? 'Completing...' : 'Complete Registration'}
+              <button type="submit" disabled={loading} className="flex-1 py-3 px-4 bg-[#00B4A0] text-white rounded-md font-medium hover:bg-[#009985] disabled:opacity-50">
+                {loading ? 'Saving...' : 'Complete Setup'}
               </button>
             </div>
           </form>
         )}
 
         <p className="text-center text-gray-600 text-sm mt-6">
-          Want to register as a regular user?{' '}
-          <Link href="/register" className="text-[#00B4A0] hover:underline">
-            Register here
-          </Link>
+          Already have an account? <Link href="/" className="text-[#00B4A0] hover:underline">Sign In</Link>
         </p>
       </div>
     </div>

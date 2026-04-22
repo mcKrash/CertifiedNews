@@ -1,430 +1,311 @@
 const { PrismaClient } = require('@prisma/client');
+
 const prisma = new PrismaClient();
 
-/**
- * Create a new post
- */
+const formatPost = (post, currentUserId = null) => ({
+  id: post.id,
+  title: post.title || null,
+  content: post.content,
+  images: post.imageUrl ? [post.imageUrl] : [],
+  links: post.sourceUrl ? [post.sourceUrl] : [],
+  sourceUrl: post.sourceUrl || null,
+  imageUrl: post.imageUrl || null,
+  status: post.status,
+  likes: post._count?.votes ?? post.likes ?? 0,
+  comments: post._count?.comments ?? 0,
+  liked: currentUserId ? post.votes?.some((vote) => vote.userId === currentUserId) : false,
+  createdAt: post.createdAt,
+  updatedAt: post.updatedAt,
+  author: {
+    id: post.user.id,
+    name: post.user.name,
+    username: post.user.username,
+    avatarUrl: post.user.avatarUrl || post.user.profilePhotoUrl || null,
+    userType: post.user.userType,
+    isVerified: post.user.isVerified,
+  },
+});
+
 const createPost = async (req, res) => {
   try {
-    const { content, images = [], links = [] } = req.body;
+    const { content, title, imageUrl, sourceUrl } = req.body;
     const userId = req.user.id;
 
-    if (!content || content.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Post content is required',
-      });
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: 'Post content is required' });
     }
 
-    // Get user data including verification status
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        journalistProfile: true,
-        agencyProfile: true,
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    // Create post
     const post = await prisma.post.create({
       data: {
-        content,
-        images: images || [],
-        links: links || [],
-        authorId: userId,
-        userType: user.userType,
-        isVerified: user.isVerified,
+        title: title || null,
+        content: content.trim(),
+        imageUrl: imageUrl || null,
+        sourceUrl: sourceUrl || null,
+        userId,
       },
       include: {
-        author: {
+        user: {
           select: {
             id: true,
             name: true,
             username: true,
             avatarUrl: true,
+            profilePhotoUrl: true,
             userType: true,
             isVerified: true,
           },
         },
         votes: true,
-        comments: true,
+        _count: {
+          select: {
+            votes: true,
+            comments: true,
+          },
+        },
       },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Post created successfully',
-      data: {
-        id: post.id,
-        content: post.content,
-        images: post.images,
-        links: post.links,
-        author: post.author,
-        userType: post.userType,
-        isVerified: post.isVerified,
-        likes: post.votes.length,
-        comments: post.comments.length,
-        liked: false,
-        createdAt: post.createdAt,
-      },
+      data: formatPost(post, userId),
     });
   } catch (error) {
     console.error('Create post error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create post',
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Failed to create post', error: error.message });
   }
 };
 
-/**
- * Get all posts with pagination
- */
 const getPosts = async (req, res) => {
   try {
     const { page = 1, limit = 10, userId } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const pageNumber = parseInt(page, 10);
+    const pageSize = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * pageSize;
 
-    const posts = await prisma.post.findMany({
-      skip,
-      take: parseInt(limit),
-      orderBy: { createdAt: 'desc' },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            avatarUrl: true,
-            userType: true,
-            isVerified: true,
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatarUrl: true,
+              profilePhotoUrl: true,
+              userType: true,
+              isVerified: true,
+            },
           },
-        },
-        votes: userId ? { where: { userId } } : false,
-        comments: {
-          take: 2,
-          include: {
-            author: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                avatarUrl: true,
-              },
+          votes: userId ? { where: { userId } } : false,
+          _count: {
+            select: {
+              votes: true,
+              comments: true,
             },
           },
         },
-      },
-    });
+      }),
+      prisma.post.count(),
+    ]);
 
-    const total = await prisma.post.count();
-
-    const formattedPosts = posts.map(post => ({
-      id: post.id,
-      content: post.content,
-      images: post.images,
-      links: post.links,
-      author: post.author,
-      userType: post.userType,
-      isVerified: post.isVerified,
-      likes: post.votes.length,
-      comments: post.comments.length,
-      liked: userId ? post.votes.length > 0 : false,
-      createdAt: post.createdAt,
-    }));
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: formattedPosts,
+      data: posts.map((post) => formatPost(post, userId || null)),
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNumber,
+        limit: pageSize,
         total,
-        pages: Math.ceil(total / parseInt(limit)),
+        pages: Math.ceil(total / pageSize),
       },
     });
   } catch (error) {
     console.error('Get posts error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch posts',
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Failed to fetch posts', error: error.message });
   }
 };
 
-/**
- * Get posts by user
- */
 const getUserPosts = async (req, res) => {
   try {
     const { username } = req.params;
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { page = 1, limit = 10, userId } = req.query;
+    const pageNumber = parseInt(page, 10);
+    const pageSize = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * pageSize;
 
-    const user = await prisma.user.findUnique({
-      where: { username },
-    });
-
+    const user = await prisma.user.findUnique({ where: { username } });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const posts = await prisma.post.findMany({
-      where: { authorId: user.id },
-      skip,
-      take: parseInt(limit),
-      orderBy: { createdAt: 'desc' },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            avatarUrl: true,
-            userType: true,
-            isVerified: true,
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where: { userId: user.id },
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatarUrl: true,
+              profilePhotoUrl: true,
+              userType: true,
+              isVerified: true,
+            },
+          },
+          votes: userId ? { where: { userId } } : false,
+          _count: {
+            select: {
+              votes: true,
+              comments: true,
+            },
           },
         },
-        votes: true,
-        comments: true,
-      },
-    });
+      }),
+      prisma.post.count({ where: { userId: user.id } }),
+    ]);
 
-    const total = await prisma.post.count({
-      where: { authorId: user.id },
-    });
-
-    const formattedPosts = posts.map(post => ({
-      id: post.id,
-      content: post.content,
-      images: post.images,
-      links: post.links,
-      author: post.author,
-      userType: post.userType,
-      isVerified: post.isVerified,
-      likes: post.votes.length,
-      comments: post.comments.length,
-      liked: false,
-      createdAt: post.createdAt,
-    }));
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: formattedPosts,
+      data: posts.map((post) => formatPost(post, userId || null)),
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNumber,
+        limit: pageSize,
         total,
-        pages: Math.ceil(total / parseInt(limit)),
+        pages: Math.ceil(total / pageSize),
       },
     });
   } catch (error) {
     console.error('Get user posts error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch user posts',
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Failed to fetch user posts', error: error.message });
   }
 };
 
-/**
- * Get single post
- */
 const getPost = async (req, res) => {
   try {
     const { id } = req.params;
+    const currentUserId = req.user?.id || null;
 
     const post = await prisma.post.findUnique({
       where: { id },
       include: {
-        author: {
+        user: {
           select: {
             id: true,
             name: true,
             username: true,
             avatarUrl: true,
+            profilePhotoUrl: true,
             userType: true,
             isVerified: true,
           },
         },
-        votes: true,
-        comments: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                avatarUrl: true,
-              },
-            },
+        votes: currentUserId ? { where: { userId: currentUserId } } : false,
+        _count: {
+          select: {
+            votes: true,
+            comments: true,
           },
         },
       },
     });
 
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found',
-      });
+      return res.status(404).json({ success: false, message: 'Post not found' });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: {
-        id: post.id,
-        content: post.content,
-        images: post.images,
-        links: post.links,
-        author: post.author,
-        userType: post.userType,
-        isVerified: post.isVerified,
-        likes: post.votes.length,
-        comments: post.comments,
-        createdAt: post.createdAt,
-      },
+      data: formatPost(post, currentUserId),
     });
   } catch (error) {
     console.error('Get post error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch post',
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Failed to fetch post', error: error.message });
   }
 };
 
-/**
- * Update post
- */
 const updatePost = async (req, res) => {
   try {
     const { id } = req.params;
-    const { content, images = [], links = [] } = req.body;
+    const { content, title, imageUrl, sourceUrl } = req.body;
     const userId = req.user.id;
 
-    const post = await prisma.post.findUnique({
-      where: { id },
-    });
-
+    const post = await prisma.post.findUnique({ where: { id } });
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found',
-      });
+      return res.status(404).json({ success: false, message: 'Post not found' });
     }
 
-    if (post.authorId !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Unauthorized to update this post',
-      });
+    if (post.userId !== userId) {
+      return res.status(403).json({ success: false, message: 'Unauthorized to update this post' });
     }
 
     const updatedPost = await prisma.post.update({
       where: { id },
       data: {
-        content,
-        images,
-        links,
+        ...(typeof title === 'string' ? { title } : {}),
+        ...(typeof content === 'string' ? { content: content.trim() } : {}),
+        ...(typeof imageUrl !== 'undefined' ? { imageUrl: imageUrl || null } : {}),
+        ...(typeof sourceUrl !== 'undefined' ? { sourceUrl: sourceUrl || null } : {}),
       },
       include: {
-        author: {
+        user: {
           select: {
             id: true,
             name: true,
             username: true,
             avatarUrl: true,
+            profilePhotoUrl: true,
             userType: true,
             isVerified: true,
           },
         },
-        votes: true,
-        comments: true,
+        votes: { where: { userId } },
+        _count: {
+          select: {
+            votes: true,
+            comments: true,
+          },
+        },
       },
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Post updated successfully',
-      data: {
-        id: updatedPost.id,
-        content: updatedPost.content,
-        images: updatedPost.images,
-        links: updatedPost.links,
-        author: updatedPost.author,
-        userType: updatedPost.userType,
-        isVerified: updatedPost.isVerified,
-        likes: updatedPost.votes.length,
-        comments: updatedPost.comments.length,
-        createdAt: updatedPost.createdAt,
-      },
+      data: formatPost(updatedPost, userId),
     });
   } catch (error) {
     console.error('Update post error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update post',
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Failed to update post', error: error.message });
   }
 };
 
-/**
- * Delete post
- */
 const deletePost = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
 
-    const post = await prisma.post.findUnique({
-      where: { id },
-    });
-
+    const post = await prisma.post.findUnique({ where: { id } });
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found',
-      });
+      return res.status(404).json({ success: false, message: 'Post not found' });
     }
 
-    if (post.authorId !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Unauthorized to delete this post',
-      });
+    if (post.userId !== userId && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Unauthorized to delete this post' });
     }
 
-    await prisma.post.delete({
-      where: { id },
-    });
+    await prisma.post.delete({ where: { id } });
 
-    res.status(200).json({
-      success: true,
-      message: 'Post deleted successfully',
-    });
+    return res.status(200).json({ success: true, message: 'Post deleted successfully' });
   } catch (error) {
     console.error('Delete post error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete post',
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Failed to delete post', error: error.message });
   }
 };
 

@@ -1,12 +1,23 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://certifiednews.onrender.com/api';
 
+export interface UserPreferences {
+  topicsOfInterest: string[];
+  preferredLanguage: string;
+}
+
 export interface User {
   id: string;
   email: string;
+  username: string;
   name: string;
   role: string;
-  avatar?: string;
+  userType: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  profilePhotoUrl?: string | null;
   isVerified?: boolean;
+  emailVerified?: boolean;
+  preferences?: UserPreferences | null;
 }
 
 export interface AuthResponse {
@@ -15,44 +26,48 @@ export interface AuthResponse {
   data: {
     user: User;
     token: string;
+    verificationEmailSent?: boolean;
+    verificationEmailReason?: string | null;
   };
 }
 
-/**
- * Login user with email and password
- */
-export const loginUser = async (email: string, password: string): Promise<AuthResponse> => {
-  try {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
+const persistAuth = (response: AuthResponse) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
 
-    const data = await response.json();
+  const token = response?.data?.token;
+  const user = response?.data?.user;
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Login failed');
-    }
+  if (token) {
+    localStorage.setItem('token', token);
+    document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+  }
 
-    if (data.data.token) {
-      localStorage.setItem('token', data.data.token);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-      document.cookie = `token=${data.data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Login error:', error);
-    throw error;
+  if (user) {
+    localStorage.setItem('user', JSON.stringify(user));
   }
 };
 
-/**
- * Register a new user
- */
+export const loginUser = async (emailOrUsername: string, password: string): Promise<AuthResponse> => {
+  const response = await fetch(`${API_URL}/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email: emailOrUsername, password }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Login failed');
+  }
+
+  persistAuth(data);
+  return data;
+};
+
 export const registerUser = async (
   email: string,
   password: string,
@@ -60,37 +75,49 @@ export const registerUser = async (
   userType: string = 'REGULAR_USER',
   username?: string
 ): Promise<AuthResponse> => {
-  try {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password, name, userType, username }),
-    });
+  const response = await fetch(`${API_URL}/auth/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password, name, userType, username }),
+  });
 
-    const data = await response.json();
+  const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Registration failed');
-    }
-
-    if (data.data.token) {
-      localStorage.setItem('token', data.data.token);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-      document.cookie = `token=${data.data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Registration error:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error(data.message || 'Registration failed');
   }
+
+  persistAuth(data);
+  return data;
 };
 
-/**
- * Get current user from localStorage
- */
+export const fetchCurrentUser = async (): Promise<User | null> => {
+  const token = getToken();
+  if (!token) {
+    return null;
+  }
+
+  const response = await fetch(`${API_URL}/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    return getCurrentUser();
+  }
+
+  const data = await response.json();
+  if (data?.data) {
+    localStorage.setItem('user', JSON.stringify(data.data));
+    return data.data;
+  }
+
+  return getCurrentUser();
+};
+
 export const getCurrentUser = (): User | null => {
   if (typeof window === 'undefined') return null;
 
@@ -104,17 +131,11 @@ export const getCurrentUser = (): User | null => {
   }
 };
 
-/**
- * Get auth token from localStorage
- */
 export const getToken = (): string | null => {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('token');
 };
 
-/**
- * Logout user
- */
 export const logoutUser = (): void => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('token');
@@ -123,34 +144,41 @@ export const logoutUser = (): void => {
   }
 };
 
-/**
- * Check if user is authenticated
- */
 export const isAuthenticated = (): boolean => {
   if (typeof window === 'undefined') return false;
   return !!localStorage.getItem('token');
 };
 
-/**
- * Fetch with authentication header
- */
 export const authenticatedFetch = async (
   url: string,
   options: RequestInit = {}
 ): Promise<Response> => {
   const token = getToken();
-
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
-  };
+  } as Record<string, string>;
 
   if (token) {
-    (headers as any)['Authorization'] = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
 
   return fetch(url, {
     ...options,
     headers,
   });
+};
+
+export const resendVerificationEmail = async (): Promise<{ success: boolean; message: string }> => {
+  const response = await authenticatedFetch(`${API_URL}/auth/resend-verification-email`, {
+    method: 'POST',
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to resend verification email');
+  }
+
+  return data;
 };

@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://certifiednews.onrender.com/api';
+
 function GoogleCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -13,7 +15,6 @@ function GoogleCallbackContent() {
     const handleGoogleCallback = async () => {
       try {
         const code = searchParams.get('code');
-        const state = searchParams.get('state');
 
         if (!code) {
           setError('Authorization code not received from Google');
@@ -21,12 +22,12 @@ function GoogleCallbackContent() {
           return;
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google/callback`, {
+        const response = await fetch(`${API_URL}/auth/google/callback`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ code, state }),
+          body: JSON.stringify({ code }),
         });
 
         const data = await response.json();
@@ -35,11 +36,16 @@ function GoogleCallbackContent() {
           throw new Error(data.message || 'Google authentication failed');
         }
 
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-          document.cookie = `token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        const token = data?.data?.token;
+        const user = data?.data?.user;
+
+        if (!token || !user) {
+          throw new Error('Google authentication returned an incomplete response');
         }
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 
         router.push('/home');
       } catch (err: any) {

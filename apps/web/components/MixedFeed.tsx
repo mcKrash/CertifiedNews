@@ -1,18 +1,23 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, Loader2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Bookmark, Loader2, Share2 } from 'lucide-react';
 import EnhancedPostCard from './EnhancedPostCard';
 import CategoryFilter from './CategoryFilter';
 
 interface Post {
   id: string;
+  title?: string | null;
   content: string;
+  imageUrl?: string | null;
+  sourceUrl?: string | null;
+  images?: string[];
+  links?: string[];
   author: {
     id: string;
     name: string;
     username: string;
-    avatarUrl?: string;
+    avatarUrl?: string | null;
     userType: 'REGULAR_USER' | 'JOURNALIST' | 'AGENCY';
     isVerified: boolean;
   };
@@ -28,19 +33,21 @@ interface NewsArticle {
   title: string;
   description: string;
   imageUrl?: string;
-  author: string;
+  author?: string;
   source: string;
-  sourceUrl: string;
-  category: string;
+  sourceUrl?: string;
+  category?: string;
   publishedAt: string;
   url: string;
-  bookmarked?: boolean;
+  bookmarked: boolean;
 }
 
 interface FeedItem {
   type: 'post' | 'news';
   data: Post | NewsArticle;
 }
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://certifiednews.onrender.com/api';
 
 export default function MixedFeed() {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
@@ -50,43 +57,42 @@ export default function MixedFeed() {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+  const token = useMemo(() => (typeof window !== 'undefined' ? localStorage.getItem('token') : null), []);
 
   const fetchFeed = useCallback(async (pageNum: number, category: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${API_URL}/news/feed?page=${pageNum}&limit=10&categories=${category}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch feed');
-      }
+      const response = await fetch(`${API_URL}/news/feed?page=${pageNum}&limit=20&categories=${category}`, {
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {},
+      });
 
       const result = await response.json();
-
-      if (pageNum === 1) {
-        setFeedItems(result.data || []);
-      } else {
-        setFeedItems(prev => [...prev, ...(result.data || [])]);
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch feed');
       }
 
-      setHasMore(result.data?.length === 10);
+      const incomingItems = Array.isArray(result.data) ? result.data : [];
+      const normalizedItems = incomingItems.map((item: FeedItem) =>
+        item.type === 'post'
+          ? { ...item, data: { bookmarked: false, ...(item.data as Post) } }
+          : { ...item, data: { bookmarked: false, ...(item.data as NewsArticle) } }
+      );
+
+      setFeedItems((prev) => (pageNum === 1 ? normalizedItems : [...prev, ...normalizedItems]));
+      setHasMore(incomingItems.length === 20);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Feed fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, [API_URL]);
+  }, [token]);
 
   useEffect(() => {
     setPage(1);
@@ -99,111 +105,92 @@ export default function MixedFeed() {
     fetchFeed(nextPage, selectedCategory);
   };
 
-  const handleLike = async (itemId: string, isPost: boolean): Promise<void> => {
-    try {
-      const token = localStorage.getItem('token');
-      const endpoint = isPost ? '/votes' : '/votes';
-      const payload = isPost ? { postId: itemId } : { articleId: itemId };
+  const handleLike = async (itemId: string, isPost: boolean) => {
+    if (!token) return;
 
-      const response = await fetch(`${API_URL}${endpoint}`, {
+    try {
+      const response = await fetch(`${API_URL}/votes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(isPost ? { postId: itemId } : { articleId: itemId }),
       });
 
-      if (response.ok) {
-        setFeedItems(prev =>
-          prev.map(item => {
-            if (item.type === 'post' && item.data.id === itemId) {
-              const postData = item.data as Post;
-              return {
-                ...item,
-                data: {
-                  ...postData,
-                  liked: !postData.liked,
-                  likes: postData.liked ? postData.likes - 1 : postData.likes + 1,
-                },
-              };
-            }
-            return item;
-          })
-        );
-      }
+      if (!response.ok) return;
+
+      setFeedItems((prev) =>
+        prev.map((item) => {
+          if (item.type !== 'post' || item.data.id !== itemId) return item;
+          const post = item.data as Post;
+          const nextLiked = !post.liked;
+          return {
+            ...item,
+            data: {
+              ...post,
+              liked: nextLiked,
+              likes: Math.max(0, post.likes + (nextLiked ? 1 : -1)),
+            },
+          };
+        })
+      );
     } catch (err) {
       console.error('Like error:', err);
     }
   };
 
-  const handleBookmark = async (itemId: string, isPost: boolean): Promise<void> => {
-    try {
-      const token = localStorage.getItem('token');
-      const payload = isPost ? { postId: itemId } : { articleId: itemId };
+  const handleBookmark = async (itemId: string, isPost: boolean) => {
+    if (!token) return;
 
+    try {
       const response = await fetch(`${API_URL}/bookmarks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(isPost ? { postId: itemId } : { articleId: itemId }),
       });
 
-      if (response.ok) {
-        setFeedItems(prev =>
-          prev.map(item => {
-            if (item.type === 'post' && item.data.id === itemId) {
-              const postData = item.data as Post;
-              return {
-                ...item,
-                data: {
-                  ...postData,
-                  bookmarked: !postData.bookmarked,
-                },
-              };
-            }
-            return item;
-          })
-        );
-      }
+      if (!response.ok) return;
+
+      setFeedItems((prev) =>
+        prev.map((item) =>
+          item.data.id === itemId
+            ? { ...item, data: { ...item.data, bookmarked: !item.data.bookmarked } }
+            : item
+        )
+      );
     } catch (err) {
       console.error('Bookmark error:', err);
     }
   };
 
-  const handleShare = async (item: FeedItem): Promise<void> => {
-    const text =
-      item.type === 'post'
-        ? (item.data as Post).content
-        : (item.data as NewsArticle).title;
+  const handleShare = async (item: FeedItem) => {
+    const url = item.type === 'post'
+      ? `${window.location.origin}/posts/${item.data.id}`
+      : ((item.data as NewsArticle).url || window.location.href);
 
     if (navigator.share) {
-      navigator.share({
-        title: 'Check this out',
-        text,
-        url: window.location.href,
+      await navigator.share({
+        title: item.type === 'post' ? 'WCNA Post' : (item.data as NewsArticle).title,
+        text: item.type === 'post' ? (item.data as Post).content : (item.data as NewsArticle).description,
+        url,
       });
-    } else {
-      navigator.clipboard.writeText(text);
-      alert('Copied to clipboard!');
+      return;
     }
+
+    await navigator.clipboard.writeText(url);
+    alert('Link copied to clipboard');
   };
 
   return (
     <div className="w-full">
-      <CategoryFilter
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-      />
+      <CategoryFilter selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory} />
 
       <div className="max-w-2xl mx-auto">
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-4 text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-4 text-red-700">{error}</div>}
 
         {feedItems.length === 0 && !loading && (
           <div className="text-center py-12">
@@ -212,8 +199,8 @@ export default function MixedFeed() {
         )}
 
         <div className="space-y-4 p-4">
-          {feedItems.map((item, index) => (
-            <div key={`${item.type}-${item.data.id}-${index}`}>
+          {feedItems.map((item) => (
+            <div key={`${item.type}-${item.data.id}`}>
               {item.type === 'post' ? (
                 <EnhancedPostCard
                   {...(item.data as Post)}
@@ -234,54 +221,25 @@ export default function MixedFeed() {
                     )}
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
-                        <h3 className="font-bold text-lg text-gray-900 mb-2">
-                          {(item.data as NewsArticle).title}
-                        </h3>
-                        <p className="text-gray-600 text-sm mb-3">
-                          {(item.data as NewsArticle).description}
-                        </p>
+                        <h3 className="font-bold text-lg text-gray-900 mb-2">{(item.data as NewsArticle).title}</h3>
+                        <p className="text-gray-600 text-sm mb-3">{(item.data as NewsArticle).description}</p>
                         <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
-                          <span className="font-medium">
-                            {(item.data as NewsArticle).source}
-                          </span>
+                          <span className="font-medium">{(item.data as NewsArticle).source}</span>
                           <span>•</span>
-                          <span>
-                            {new Date(
-                              (item.data as NewsArticle).publishedAt
-                            ).toLocaleDateString()}
-                          </span>
+                          <span>{new Date((item.data as NewsArticle).publishedAt).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                      <a
-                        href={(item.data as NewsArticle).url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-teal-500 hover:text-teal-600 text-sm font-medium"
-                      >
+                      <a href={(item.data as NewsArticle).url} target="_blank" rel="noopener noreferrer" className="text-teal-500 hover:text-teal-600 text-sm font-medium">
                         Read Full Article →
                       </a>
                       <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => handleBookmark(item.data.id, false)}
-                          className="text-gray-400 hover:text-teal-500 transition-colors"
-                        >
-                          <Bookmark
-                            size={18}
-                            fill={
-                              feedItems.find(i => i.data.id === item.data.id)
-                                ?.data.bookmarked
-                                ? 'currentColor'
-                                : 'none'
-                            }
-                          />
+                        <button onClick={() => handleBookmark(item.data.id, false)} className="text-gray-400 hover:text-teal-500 transition-colors">
+                          <Bookmark size={18} fill={item.data.bookmarked ? 'currentColor' : 'none'} />
                         </button>
-                        <button
-                          onClick={() => handleShare(item)}
-                          className="text-gray-400 hover:text-teal-500 transition-colors"
-                        >
+                        <button onClick={() => handleShare(item)} className="text-gray-400 hover:text-teal-500 transition-colors">
                           <Share2 size={18} />
                         </button>
                       </div>
@@ -301,10 +259,7 @@ export default function MixedFeed() {
 
         {hasMore && !loading && feedItems.length > 0 && (
           <div className="flex justify-center py-8">
-            <button
-              onClick={handleLoadMore}
-              className="px-6 py-2 bg-teal-500 text-white rounded-full hover:bg-teal-600 transition-colors font-medium"
-            >
+            <button onClick={handleLoadMore} className="px-6 py-2 bg-teal-500 text-white rounded-full hover:bg-teal-600 transition-colors font-medium">
               Load More
             </button>
           </div>

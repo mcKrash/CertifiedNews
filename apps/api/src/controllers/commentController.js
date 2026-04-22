@@ -3,46 +3,41 @@ const { checkContentViolation, recordViolation, isUserBanned } = require('../uti
 
 const prisma = new PrismaClient();
 
-/**
- * Create a new comment
- */
+const serializeComment = (comment) => ({
+  id: comment.id,
+  content: comment.content,
+  userId: comment.user.id,
+  userName: comment.user.name,
+  username: comment.user.username,
+  userAvatar: comment.user.avatarUrl || comment.user.profilePhotoUrl || null,
+  createdAt: comment.createdAt,
+  updatedAt: comment.updatedAt,
+  likes: comment.likeCount || 0,
+  replies: (comment.replies || []).map((reply) => serializeComment(reply)),
+});
+
 const createComment = async (req, res) => {
   try {
     const { content, articleId, postId, parentId } = req.body;
     const userId = req.user.id;
 
-    // Validate input
-    if (!content || content.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Comment content cannot be empty',
-      });
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: 'Comment content cannot be empty' });
     }
 
     if (content.length > 2000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Comment exceeds maximum length of 2000 characters',
-      });
+      return res.status(400).json({ success: false, message: 'Comment exceeds maximum length of 2000 characters' });
     }
 
     if (!articleId && !postId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Either articleId or postId is required',
-      });
+      return res.status(400).json({ success: false, message: 'Either articleId or postId is required' });
     }
 
-    // Check if user is banned
     const banStatus = isUserBanned(userId);
     if (banStatus.isBanned) {
-      return res.status(403).json({
-        success: false,
-        message: banStatus.reason,
-      });
+      return res.status(403).json({ success: false, message: banStatus.reason });
     }
 
-    // Check content violation
     const violation = checkContentViolation(content);
     if (violation.isViolating) {
       recordViolation(userId, violation.severity);
@@ -52,157 +47,142 @@ const createComment = async (req, res) => {
       });
     }
 
-    // Create comment
     const comment = await prisma.comment.create({
       data: {
-        content,
+        content: content.trim(),
         userId,
         articleId: articleId || null,
         postId: postId || null,
         parentId: parentId || null,
-        status: 'APPROVED',
       },
       include: {
         user: {
-          select: { id: true, name: true, avatar: true },
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatarUrl: true,
+            profilePhotoUrl: true,
+          },
         },
       },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Comment created successfully',
-      data: comment,
+      data: serializeComment({ ...comment, replies: [], likeCount: 0 }),
     });
   } catch (error) {
     console.error('Create comment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create comment',
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Failed to create comment', error: error.message });
   }
 };
 
-/**
- * Get comments for article or post
- */
 const getComments = async (req, res) => {
   try {
     const { articleId, postId, page = 1, limit = 10 } = req.query;
 
     if (!articleId && !postId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Either articleId or postId is required',
-      });
+      return res.status(400).json({ success: false, message: 'Either articleId or postId is required' });
     }
 
-    const skip = (page - 1) * limit;
+    const pageNumber = parseInt(page, 10);
+    const pageSize = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * pageSize;
+
+    const where = {
+      articleId: articleId || null,
+      postId: postId || null,
+      parentId: null,
+    };
 
     const [comments, total] = await Promise.all([
       prisma.comment.findMany({
-        where: {
-          articleId: articleId || null,
-          postId: postId || null,
-          parentId: null, // Only top-level comments
-          status: 'APPROVED',
-        },
+        where,
         include: {
           user: {
-            select: { id: true, name: true, avatar: true },
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatarUrl: true,
+              profilePhotoUrl: true,
+            },
           },
           replies: {
             include: {
               user: {
-                select: { id: true, name: true, avatar: true },
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                  avatarUrl: true,
+                  profilePhotoUrl: true,
+                },
+              },
+              replies: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      username: true,
+                      avatarUrl: true,
+                      profilePhotoUrl: true,
+                    },
+                  },
+                },
+                orderBy: { createdAt: 'asc' },
               },
             },
             orderBy: { createdAt: 'asc' },
           },
-          _count: {
-            select: { votes: true },
-          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: parseInt(limit),
+        take: pageSize,
       }),
-      prisma.comment.count({
-        where: {
-          articleId: articleId || null,
-          postId: postId || null,
-          parentId: null,
-          status: 'APPROVED',
-        },
-      }),
+      prisma.comment.count({ where }),
     ]);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: comments.map(comment => ({
-        ...comment,
-        likeCount: comment._count.votes,
-      })),
+      data: comments.map((comment) => serializeComment(comment)),
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNumber,
+        limit: pageSize,
         total,
-        pages: Math.ceil(total / limit),
+        pages: Math.ceil(total / pageSize),
       },
     });
   } catch (error) {
     console.error('Get comments error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch comments',
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Failed to fetch comments', error: error.message });
   }
 };
 
-/**
- * Delete comment (own or admin)
- */
 const deleteComment = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
 
-    const comment = await prisma.comment.findUnique({
-      where: { id },
-    });
+    const comment = await prisma.comment.findUnique({ where: { id } });
 
     if (!comment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Comment not found',
-      });
+      return res.status(404).json({ success: false, message: 'Comment not found' });
     }
 
-    // Check authorization
     if (comment.userId !== userId && req.user.role !== 'ADMIN') {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to delete this comment',
-      });
+      return res.status(403).json({ success: false, message: 'You do not have permission to delete this comment' });
     }
 
-    await prisma.comment.delete({
-      where: { id },
-    });
+    await prisma.comment.delete({ where: { id } });
 
-    res.status(200).json({
-      success: true,
-      message: 'Comment deleted successfully',
-    });
+    return res.status(200).json({ success: true, message: 'Comment deleted successfully' });
   } catch (error) {
     console.error('Delete comment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete comment',
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Failed to delete comment', error: error.message });
   }
 };
 
