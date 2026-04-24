@@ -8,7 +8,7 @@ const serializeUserProfile = (user, currentUserId) => ({
   username: user.username,
   email: user.email,
   bio: user.bio || null,
-  avatarUrl: user.avatarUrl || user.profilePhotoUrl || null,
+  avatarUrl: user.avatarUrl || user.profilePhotoUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.username}`,
   coverUrl: null,
   userType: user.userType,
   role: user.role,
