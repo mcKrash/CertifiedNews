@@ -616,27 +616,29 @@ export default function HomePage() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 px-4 lg:px-8 py-8 max-w-4xl mx-auto w-full">
+        <main className={`flex-1 px-4 lg:px-8 ${liveNews.length > 0 ? 'pt-20 lg:pt-24' : 'py-8'} pb-8 max-w-4xl mx-auto w-full`}>
           {/* TV-Style Live News Status Bar */}
           {liveNews.length > 0 && (
-            <div className="flex items-stretch rounded-lg overflow-hidden mb-8 h-8 lg:h-10 shadow-lg border-b-2 border-black/20">
-              {/* LIVE Label (Red Section) */}
-              <div className="bg-[#8B0000] flex items-center px-3 lg:px-6 relative overflow-hidden flex-shrink-0">
-                <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none">
-                  <span className="text-2xl lg:text-4xl">🌍</span>
+            <div className="fixed top-[73px] left-0 lg:left-64 right-0 z-40">
+              <div className="flex items-stretch h-10 lg:h-12 shadow-lg border-b border-black/10 bg-white">
+                {/* LIVE Label (Red Section) */}
+                <div className="bg-[#8B0000] flex items-center px-4 lg:px-8 relative overflow-hidden flex-shrink-0">
+                  <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none">
+                    <span className="text-3xl lg:text-5xl">🌍</span>
+                  </div>
+                  <span className="text-white text-xs lg:text-sm font-black tracking-tighter italic animate-pulse relative z-10">LIVE</span>
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-black/30"></div>
                 </div>
-                <span className="text-white text-[10px] lg:text-xs font-black tracking-tighter italic animate-pulse relative z-10">LIVE</span>
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-black/30"></div>
-              </div>
-              
-              {/* Ticker Content (White Section with Black Text) */}
-              <div className="flex-1 bg-white flex items-center overflow-hidden relative border-l-2 border-[#8B0000]">
-                <div className="animate-marquee flex gap-12 whitespace-nowrap px-4">
-                  {liveNews.concat(liveNews).map((news, idx) => (
-                    <span key={idx} className="text-black text-[10px] lg:text-xs font-bold tracking-wide uppercase italic">
-                      {news} <span className="mx-4 text-gray-400">•</span>
-                    </span>
-                  ))}
+                
+                {/* Ticker Content (White Section with Black Text) */}
+                <div className="flex-1 bg-white flex items-center overflow-hidden relative border-l-2 border-[#8B0000]">
+                  <div className="animate-marquee flex gap-16 whitespace-nowrap px-6">
+                    {liveNews.concat(liveNews).map((news, idx) => (
+                      <span key={idx} className="text-black text-xs lg:text-sm font-bold tracking-wide uppercase italic">
+                        {news} <span className="mx-6 text-gray-400">•</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
