@@ -44,7 +44,8 @@ export default function LoginPage() {
       return;
     }
 
-    const redirectUri = `${window.location.origin}/auth/google/callback`;
+    const canonicalOrigin = (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin).replace('://www.', '://');
+    const redirectUri = `${canonicalOrigin}/auth/google/callback`;
     const scope = 'openid profile email';
     const responseType = 'code';
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&scope=${encodeURIComponent(scope)}&prompt=select_account`;
