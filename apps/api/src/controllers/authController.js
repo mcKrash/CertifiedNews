@@ -52,20 +52,27 @@ const sanitizeUser = (user) => ({
 });
 
 const buildAvatarUrl = (style, seed) => `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(seed)}`;
+const OTP_EXPIRY_MINUTES = 10;
 
 const createTransporter = () => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     return null;
   }
 
+  const port = parseInt(process.env.EMAIL_PORT || '587', 10);
+
   return nodemailer.createTransport({
-    service: process.env.EMAIL_SERVICE || 'gmail',
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port,
+    secure: port === 465,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
   });
 };
+
+const generateFiveDigitCode = () => `${Math.floor(10000 + Math.random() * 90000)}`;
 
 const sendVerificationEmail = async (user) => {
   const transporter = createTransporter();
@@ -102,6 +109,61 @@ const sendVerificationEmail = async (user) => {
   return { sent: true };
 };
 
+const sendRegistrationOtpEmail = async ({ email, name, otpCode }) => {
+  const transporter = createTransporter();
+  if (!transporter) {
+    return { sent: false, reason: 'Email credentials are not configured' };
+  }
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+    to: email,
+    subject: 'Your WCNA verification code',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>WCNA email verification</h2>
+        <p>Hello ${name},</p>
+        <p>Use the following 5-digit verification code to continue your registration:</p>
+        <div style="font-size:32px;font-weight:700;letter-spacing:8px;padding:16px 20px;background:#F5F7FA;border-radius:10px;display:inline-block;color:#00B4A0;">
+          ${otpCode}
+        </div>
+        <p style="margin-top:16px;">This code expires in ${OTP_EXPIRY_MINUTES} minutes.</p>
+      </div>
+    `,
+  });
+
+  return { sent: true };
+};
+
+const ensureRegistrationIdentityAvailable = async (email, username) => {
+  const normalizedEmail = email.toLowerCase().trim();
+  const normalizedUsername = username.trim();
+
+  const existingUserByEmail = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (existingUserByEmail) {
+    throw new Error('User with this email already exists');
+  }
+
+  const existingUserByUsername = await prisma.user.findUnique({ where: { username: normalizedUsername } });
+  if (existingUserByUsername) {
+    throw new Error('Username is already taken');
+  }
+
+  const existingPendingUsername = await prisma.pendingRegistration.findFirst({
+    where: {
+      username: normalizedUsername,
+      email: { not: normalizedEmail },
+      otpExpiresAt: { gt: new Date() },
+    },
+  });
+
+  if (existingPendingUsername) {
+    throw new Error('Username is already reserved. Please choose another one');
+  }
+
+  return { normalizedEmail, normalizedUsername };
+};
+
 const resolveUniqueUsername = async (baseValue) => {
   const slugBase = (baseValue || 'user')
     .toLowerCase()
@@ -118,6 +180,205 @@ const resolveUniqueUsername = async (baseValue) => {
   }
 
   return username;
+};
+
+const requestRegistrationOtp = async (req, res) => {
+  try {
+    const { email, name, password, userType = 'REGULAR_USER', username } = req.body;
+
+    if (!email || !password || !name || !username) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, name, username, and password are required',
+      });
+    }
+
+    const validUserTypes = ['REGULAR_USER', 'JOURNALIST', 'AGENCY'];
+    if (!validUserTypes.includes(userType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user type',
+      });
+    }
+
+    const { normalizedEmail, normalizedUsername } = await ensureRegistrationIdentityAvailable(email, username);
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const otpCode = generateFiveDigitCode();
+    const otpExpiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await prisma.pendingRegistration.upsert({
+      where: { email: normalizedEmail },
+      update: {
+        name: name.trim(),
+        username: normalizedUsername,
+        password: hashedPassword,
+        userType,
+        otpCode,
+        otpExpiresAt,
+        verifiedAt: null,
+      },
+      create: {
+        email: normalizedEmail,
+        name: name.trim(),
+        username: normalizedUsername,
+        password: hashedPassword,
+        userType,
+        otpCode,
+        otpExpiresAt,
+      },
+    });
+
+    const emailResult = await sendRegistrationOtpEmail({ email: normalizedEmail, name: name.trim(), otpCode }).catch((error) => ({
+      sent: false,
+      reason: error.message,
+    }));
+
+    if (!emailResult.sent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification code',
+        error: emailResult.reason,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Verification code sent successfully',
+      data: {
+        email: normalizedEmail,
+        expiresInMinutes: OTP_EXPIRY_MINUTES,
+      },
+    });
+  } catch (error) {
+    console.error('Request registration OTP error:', error);
+    const statusCode = /exists|taken|reserved/i.test(error.message) ? 409 : 500;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || 'Failed to send verification code',
+    });
+  }
+};
+
+const resendRegistrationOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const pendingRegistration = await prisma.pendingRegistration.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    if (!pendingRegistration) {
+      return res.status(404).json({ success: false, message: 'No pending registration found for this email' });
+    }
+
+    const otpCode = generateFiveDigitCode();
+    const otpExpiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await prisma.pendingRegistration.update({
+      where: { email: pendingRegistration.email },
+      data: { otpCode, otpExpiresAt, verifiedAt: null },
+    });
+
+    const emailResult = await sendRegistrationOtpEmail({
+      email: pendingRegistration.email,
+      name: pendingRegistration.name,
+      otpCode,
+    }).catch((error) => ({ sent: false, reason: error.message }));
+
+    if (!emailResult.sent) {
+      return res.status(500).json({ success: false, message: 'Failed to resend verification code', error: emailResult.reason });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Verification code sent successfully',
+      data: {
+        email: pendingRegistration.email,
+        expiresInMinutes: OTP_EXPIRY_MINUTES,
+      },
+    });
+  } catch (error) {
+    console.error('Resend registration OTP error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to resend verification code', error: error.message });
+  }
+};
+
+const verifyRegistrationOtp = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({ success: false, message: 'Email and verification code are required' });
+    }
+
+    const pendingRegistration = await prisma.pendingRegistration.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    if (!pendingRegistration) {
+      return res.status(404).json({ success: false, message: 'No pending registration found for this email' });
+    }
+
+    if (pendingRegistration.otpExpiresAt <= new Date()) {
+      return res.status(400).json({ success: false, message: 'Verification code has expired' });
+    }
+
+    if (pendingRegistration.otpCode !== `${code}`.trim()) {
+      return res.status(400).json({ success: false, message: 'Incorrect verification code' });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email: pendingRegistration.email } });
+    if (existingUser) {
+      await prisma.pendingRegistration.delete({ where: { email: pendingRegistration.email } });
+      return res.status(409).json({ success: false, message: 'User with this email already exists' });
+    }
+
+    const existingUsername = await prisma.user.findUnique({ where: { username: pendingRegistration.username } });
+    if (existingUsername) {
+      return res.status(409).json({ success: false, message: 'Username is already taken' });
+    }
+
+    const defaultAvatarUrl = pendingRegistration.userType === 'REGULAR_USER'
+      ? buildAvatarUrl('adventurer', pendingRegistration.username)
+      : null;
+
+    const user = await prisma.user.create({
+      data: {
+        email: pendingRegistration.email,
+        username: pendingRegistration.username,
+        name: pendingRegistration.name,
+        password: pendingRegistration.password,
+        role: 'USER',
+        userType: pendingRegistration.userType,
+        avatarUrl: defaultAvatarUrl,
+        emailVerified: true,
+      },
+      include: {
+        preferences: true,
+        journalistProfile: true,
+        agencyProfile: true,
+      },
+    });
+
+    await prisma.pendingRegistration.delete({ where: { email: pendingRegistration.email } });
+
+    const token = generateToken(user);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Email verified successfully',
+      data: {
+        user: sanitizeUser(user),
+        token,
+      },
+    });
+  } catch (error) {
+    console.error('Verify registration OTP error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to verify registration code', error: error.message });
+  }
 };
 
 const register = async (req, res) => {
@@ -768,6 +1029,9 @@ const googleCallback = async (req, res) => {
 
 module.exports = {
   register,
+  requestRegistrationOtp,
+  resendRegistrationOtp,
+  verifyRegistrationOtp,
   login,
   getCurrentUser,
   savePreferences,

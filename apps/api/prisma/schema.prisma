@@ -64,6 +64,20 @@ enum UserType {
   AGENCY
 }
 
+model PendingRegistration {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  username      String
+  password      String
+  name          String
+  userType      UserType @default(REGULAR_USER)
+  otpCode       String
+  otpExpiresAt  DateTime
+  verifiedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 model UserPreferences {
   id                String   @id @default(uuid())
   userId            String   @unique

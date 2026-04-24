@@ -175,7 +175,8 @@ export default function ProfilePage() {
                 <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
                     <Calendar size={16} />
-                 Joined {new Date(profile.joinedDate).toLocaleDateString(\'en-US\', { year: \'numeric\', month: \'long\', day: \'numeric\' })}                </div>
+                    Joined {new Date(profile.joinedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </div>
                 </div>
               </div>
             </div>

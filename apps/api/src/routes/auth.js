@@ -4,6 +4,9 @@ const authController = require('../controllers/authController');
 const { verifyToken, checkBanStatus } = require('../middleware/auth');
 
 router.post('/register', authController.register);
+router.post('/register/request-otp', authController.requestRegistrationOtp);
+router.post('/register/resend-otp', authController.resendRegistrationOtp);
+router.post('/register/verify-otp', authController.verifyRegistrationOtp);
 router.post('/login', authController.login);
 router.get('/me', verifyToken, checkBanStatus, authController.getCurrentUser);
 router.get('/verify-email', authController.verifyEmail);

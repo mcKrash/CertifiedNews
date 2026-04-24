@@ -17,6 +17,7 @@ export interface User {
   profilePhotoUrl?: string | null;
   isVerified?: boolean;
   emailVerified?: boolean;
+  createdAt?: string;
   preferences?: UserPreferences | null;
 }
 
@@ -28,6 +29,15 @@ export interface AuthResponse {
     token: string;
     verificationEmailSent?: boolean;
     verificationEmailReason?: string | null;
+  };
+}
+
+export interface RegistrationOtpResponse {
+  success: boolean;
+  message: string;
+  data: {
+    email: string;
+    expiresInMinutes: number;
   };
 }
 
@@ -93,6 +103,67 @@ export const registerUser = async (
   return data;
 };
 
+export const requestRegistrationOtp = async (
+  email: string,
+  password: string,
+  name: string,
+  userType: string = 'REGULAR_USER',
+  username?: string
+): Promise<RegistrationOtpResponse> => {
+  const response = await fetch(`${API_URL}/auth/register/request-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password, name, userType, username }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to send verification code');
+  }
+
+  return data;
+};
+
+export const resendRegistrationOtp = async (email: string): Promise<RegistrationOtpResponse> => {
+  const response = await fetch(`${API_URL}/auth/register/resend-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to resend verification code');
+  }
+
+  return data;
+};
+
+export const verifyRegistrationOtp = async (email: string, code: string): Promise<AuthResponse> => {
+  const response = await fetch(`${API_URL}/auth/register/verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, code }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to verify code');
+  }
+
+  persistAuth(data);
+  return data;
+};
+
 export const fetchCurrentUser = async (): Promise<User | null> => {
   const token = getToken();
   if (!token) {
@@ -136,12 +207,16 @@ export const getToken = (): string | null => {
   return localStorage.getItem('token');
 };
 
-export const logoutUser = (): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+export const logoutUser = (redirectPath: string = '/'): void => {
+  if (typeof window === 'undefined') {
+    return;
   }
+
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  sessionStorage.clear();
+  document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+  window.location.replace(redirectPath);
 };
 
 export const isAuthenticated = (): boolean => {

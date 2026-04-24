@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import { channels } from '@/lib/channels';
+import { logoutUser } from '@/lib/auth';
 import CommentSection from '@/components/CommentSection';
 import { HeartIcon, MessageCircleIcon, LinkChainIcon } from '@/lib/icons';
 
@@ -218,8 +219,7 @@ export default function ChannelPage() {
           </Link>
           <button
             onClick={() => {
-              localStorage.removeItem('token');
-              router.push('/');
+              logoutUser('/');
             }}
             className="px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-semibold text-white flex-shrink-0"
             style={{ backgroundColor: '#E74C3C' }}

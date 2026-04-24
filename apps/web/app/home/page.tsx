@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { channels } from '@/lib/channels';
 import CommentSection from '@/components/CommentSection';
+import { fetchCurrentUser, getCurrentUser, logoutUser } from '@/lib/auth';
 import { HeartIcon, MessageCircleIcon, LinkChainIcon, CopyrightIcon, SupportIcon, PreferencesIcon } from '@/lib/icons';
 
 export default function HomePage() {
@@ -22,6 +23,7 @@ export default function HomePage() {
   const [articleLikes, setArticleLikes] = useState<Record<string, { liked: boolean; count: number }>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [currentUser, setCurrentUser] = useState(getCurrentUser());
   const [feedPreferences, setFeedPreferences] = useState({
     defaultCategory: 'all',
     verifiedOnly: true,
@@ -54,6 +56,17 @@ export default function HomePage() {
         setActiveCategory(parsedPreferences.defaultCategory);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    const syncCurrentUser = async () => {
+      const user = await fetchCurrentUser();
+      if (user) {
+        setCurrentUser(user);
+      }
+    };
+
+    syncCurrentUser();
   }, []);
 
   // Fetch live news for the ticker
@@ -191,8 +204,7 @@ export default function HomePage() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    router.push('/');
+    logoutUser('/');
   };
 
   const handleNewPostClick = () => {
@@ -485,10 +497,22 @@ export default function HomePage() {
           <div className="flex items-center gap-2 lg:gap-4 flex-shrink-0">
             <Link
               href="/profile"
-              className="w-10 h-10 rounded-full flex items-center justify-center border-2 text-lg"
+              className="w-10 h-10 rounded-full flex items-center justify-center border-2 text-lg overflow-hidden bg-white"
               style={{ borderColor: '#00B4A0' }}
             >
-              <span style={{ color: '#00B4A0' }}>👤</span>
+              {currentUser?.avatarUrl ? (
+                <img
+                  src={currentUser.avatarUrl}
+                  alt={currentUser.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img
+                  src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(currentUser?.username || 'wcna-user')}`}
+                  alt={currentUser?.name || 'WCNA user'}
+                  className="w-full h-full object-cover"
+                />
+              )}
             </Link>
             <button
               onClick={handleLogout}
