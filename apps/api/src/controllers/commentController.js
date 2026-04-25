@@ -18,7 +18,7 @@ const serializeComment = (comment) => ({
 
 const createComment = async (req, res) => {
   try {
-    const { content, articleId, postId, parentId } = req.body;
+    let { content, articleId, postId, parentId } = req.body;
     const userId = req.user.id;
 
     if (!content || !content.trim()) {
@@ -32,6 +32,10 @@ const createComment = async (req, res) => {
     if (!articleId && !postId) {
       return res.status(400).json({ success: false, message: 'Either articleId or postId is required' });
     }
+
+    // Convert to string to avoid Prisma validation errors
+    if (articleId) articleId = String(articleId);
+    if (postId) postId = String(postId);
 
     const banStatus = isUserBanned(userId);
     if (banStatus.isBanned) {
@@ -81,11 +85,15 @@ const createComment = async (req, res) => {
 
 const getComments = async (req, res) => {
   try {
-    const { articleId, postId, page = 1, limit = 10 } = req.query;
+    let { articleId, postId, page = 1, limit = 10 } = req.query;
 
     if (!articleId && !postId) {
       return res.status(400).json({ success: false, message: 'Either articleId or postId is required' });
     }
+
+    // Convert to string to avoid Prisma validation errors
+    if (articleId) articleId = String(articleId);
+    if (postId) postId = String(postId);
 
     const pageNumber = parseInt(page, 10);
     const pageSize = parseInt(limit, 10);
