@@ -312,7 +312,7 @@ export default function HomePage() {
   };
 
   const getArticleLikeData = (articleId: string) => {
-    return articleLikes[articleId] || { liked: false, count: Math.floor(Math.random() * 200) };
+    return articleLikes[articleId] || { liked: false, count: 0 };
   };
 
   const getTotalEngagement = (articleId: string) => {
@@ -795,6 +795,35 @@ export default function HomePage() {
                 <p className="text-sm mb-4 leading-relaxed" style={{ color: '#7F8C8D' }}>
                   {article.body}
                 </p>
+
+                {/* Media Rendering */}
+                {article.sourceUrl && (
+                  <div className="mb-4 rounded-lg overflow-hidden border border-gray-100 bg-gray-50">
+                    {(article.sourceUrl.includes('youtube.com') || article.sourceUrl.includes('youtu.be') || article.sourceUrl.includes('vimeo.com') || article.sourceUrl.endsWith('.mp4')) ? (
+                      <div className="aspect-video w-full bg-black flex items-center justify-center">
+                        {article.sourceUrl.includes('youtube.com') || article.sourceUrl.includes('youtu.be') ? (
+                          <iframe
+                            className="w-full h-full"
+                            src={`https://www.youtube.com/embed/${article.sourceUrl.includes('v=') ? article.sourceUrl.split('v=')[1].split('&')[0] : article.sourceUrl.split('/').pop()}`}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
+                        ) : (
+                          <video src={article.sourceUrl} controls className="w-full h-full" />
+                        )}
+                      </div>
+                    ) : (article.sourceUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i) || article.sourceUrl.includes('images.unsplash.com')) ? (
+                      <img
+                        src={article.sourceUrl}
+                        alt={article.title}
+                        className="w-full h-auto max-h-[400px] object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+                        }}
+                      />
+                    ) : null}
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between pt-4 border-t flex-col sm:flex-row gap-2" style={{ borderColor: '#E0E6ED' }}>
                   <div className="flex items-center gap-4 text-[10px] font-bold" style={{ color: '#95A5A6' }}>
