@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { checkContentViolation, recordViolation, isUserBanned, COMMUNITY_GUIDELINES } from '@/lib/moderation';
-import { CloseIcon, ReplyIcon, ImageIcon, EmojiIcon, MoreIcon, SortIcon, ChatBubbleIcon, HeartIcon, LinkIcon } from '@/lib/icons';
+import { CloseIcon, ReplyIcon, ImageIcon, EmojiIcon, MoreIcon, SortIcon, ChatBubbleIcon, HeartIcon, LinkIcon, SendIcon } from '@/lib/icons';
 import { getCurrentUser, getToken } from '@/lib/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://certifiednews.onrender.com/api';
@@ -329,8 +329,8 @@ export default function CommentSection({ articleId, postId, onCommentAdded, isEx
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-xs" style={{ color: '#95A5A6' }}>{characterCount} / 2000</span>
-                  <button type="submit" disabled={isSubmitting || !newComment.trim()} className="px-6 py-2 rounded-lg font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: '#00B4A0' }}>
-                    {isSubmitting ? 'Posting...' : 'Post'}
+                  <button type="submit" disabled={isSubmitting || !newComment.trim()} className="p-2 rounded-full font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center" style={{ backgroundColor: '#00B4A0' }} title="Send">
+                    {isSubmitting ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> : <SendIcon size={20} color="white" />}
                   </button>
                 </div>
               </div>
@@ -345,13 +345,8 @@ export default function CommentSection({ articleId, postId, onCommentAdded, isEx
         </form>
       )}
 
-      <div className="flex items-center justify-between mb-6">
-        <div></div>
-        <button className="text-xs font-bold flex items-center gap-2" style={{ color: '#00B4A0' }}>
-          <SortIcon size={16} />
-          Most Recent
-        </button>
-      </div>
+      {/* Removed Most Recent sort button */}
+      <div className="mb-6"></div>
 
       <div className="space-y-6">
         {isLoading ? (
