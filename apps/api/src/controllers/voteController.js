@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
  */
 const toggleVote = async (req, res) => {
   try {
-    const { articleId, postId, type = 'LIKE' } = req.body;
+    let { articleId, postId, type = 'LIKE' } = req.body;
     const userId = req.user.id;
 
     if (!articleId && !postId) {
@@ -16,6 +16,10 @@ const toggleVote = async (req, res) => {
         message: 'Either articleId or postId is required',
       });
     }
+
+    // Convert to string to avoid Prisma validation errors (handles numeric IDs)
+    if (articleId) articleId = String(articleId);
+    if (postId) postId = String(postId);
 
     // Check if vote already exists
     const existingVote = await prisma.vote.findFirst({
@@ -78,7 +82,7 @@ const toggleVote = async (req, res) => {
  */
 const getVoteCount = async (req, res) => {
   try {
-    const { articleId, postId, type = 'LIKE' } = req.query;
+    let { articleId, postId, type = 'LIKE' } = req.query;
 
     if (!articleId && !postId) {
       return res.status(400).json({
@@ -86,6 +90,10 @@ const getVoteCount = async (req, res) => {
         message: 'Either articleId or postId is required',
       });
     }
+
+    // Convert to string to avoid Prisma validation errors
+    if (articleId) articleId = String(articleId);
+    if (postId) postId = String(postId);
 
     const voteCount = await prisma.vote.count({
       where: {
