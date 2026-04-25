@@ -28,16 +28,16 @@ model User {
   profilePhotoUrl       String?
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
-  
+
   // Onboarding preferences
   preferences           UserPreferences?
-  
+
   // Journalist-specific fields
   journalistProfile     JournalistProfile?
-  
+
   // Agency-specific fields
   agencyProfile         AgencyProfile?
-  
+
   // Relationships
   articles              Article[]
   posts                 Post[]
@@ -46,7 +46,7 @@ model User {
   bookmarks             Bookmark[]
   notifications         Notification[]
   reporterApplication   ReporterApplication?
-  
+
   // Follow relationships
   followers             Follow[]             @relation("follower")
   following             Follow[]             @relation("following")
@@ -89,49 +89,49 @@ model UserPreferences {
 }
 
 model JournalistProfile {
-  id                String   @id @default(uuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  beat              String?
-  affiliatedOrg     String?
-  portfolioUrl      String?
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beat               String?
+  affiliatedOrg      String?
+  portfolioUrl       String?
   verificationStatus VerificationStatus @default(PENDING)
-  verifiedAt        DateTime?
-  verifiedBy        String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  verifiedAt         DateTime?
+  verifiedBy         String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 }
 
 model AgencyProfile {
-  id                String   @id @default(uuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationName  String
-  website           String
-  country           String
-  agencyType        String   // Newspaper, TV, Digital, Wire Service, Magazine
-  registrationNumber String?
-  primaryContactName String
+  id                  String             @id @default(uuid())
+  userId              String             @unique
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationName    String
+  website             String
+  country             String
+  agencyType          String
+  registrationNumber  String?
+  primaryContactName  String
   primaryContactEmail String
-  logoUrl           String?
-  description       String?  @db.Text
-  socialHandles     SocialHandles?
-  verificationStatus VerificationStatus @default(PENDING)
-  verifiedAt        DateTime?
-  verifiedBy        String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  logoUrl             String?
+  description         String?            @db.Text
+  socialHandles       SocialHandles?
+  verificationStatus  VerificationStatus @default(PENDING)
+  verifiedAt          DateTime?
+  verifiedBy          String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 }
 
 model SocialHandles {
-  id                String   @id @default(uuid())
-  agencyProfileId   String   @unique
-  agencyProfile     AgencyProfile @relation(fields: [agencyProfileId], references: [id], onDelete: Cascade)
-  twitter           String?
-  facebook          String?
-  instagram         String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id              String        @id @default(uuid())
+  agencyProfileId String        @unique
+  agencyProfile   AgencyProfile @relation(fields: [agencyProfileId], references: [id], onDelete: Cascade)
+  twitter         String?
+  facebook        String?
+  instagram       String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 enum VerificationStatus {
@@ -152,18 +152,18 @@ model Follow {
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  slug      String    @unique
-  articles  Article[]
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  slug     String    @unique
+  articles Article[]
 }
 
 model Source {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  url       String
-  logo      String?
-  articles  Article[]
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  url      String
+  logo     String?
+  articles Article[]
 }
 
 model Article {
@@ -173,44 +173,42 @@ model Article {
   sourceId    Int
   sourceName  String
   categoryId  Int
-  status      String    @default("pending") // pending, verified, rejected
+  status      String    @default("pending")
   publishedAt DateTime  @default(now())
   viewCount   Int       @default(0)
   authorId    String?
   author      User?     @relation(fields: [authorId], references: [id])
   category    Category  @relation(fields: [categoryId], references: [id])
   source      Source    @relation(fields: [sourceId], references: [id])
-  votes       Vote[]
-  comments    Comment[]
+  // Removed relations to allow engagement on external articles not in DB
   bookmarks   Bookmark[]
 }
 
 model Post {
-  id          String    @id @default(uuid())
-  title       String?
-  content     String    @db.Text
-  sourceUrl   String?
-  imageUrl    String?
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status      String    @default("pending") // pending, verified, rejected
-  likes       Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  // Relationships for engagement
-  votes       Vote[]
-  comments    Comment[]
+  id        String    @id @default(uuid())
+  title     String?
+  content   String    @db.Text
+  sourceUrl String?
+  imageUrl  String?
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String    @default("pending")
+  likes     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  votes     Vote[]
+  comments  Comment[]
 }
 
 model Vote {
   id        String   @id @default(uuid())
-  type      String   // up, down, like
+  type      String
   userId    String
-  articleId String?
+  articleId String?  // Can be a DB ID or an external RSS URL/ID
   postId    String?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article   Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  // Removed the @relation for articleId to allow liking external articles not in DB
   post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
@@ -222,11 +220,11 @@ model Comment {
   id        String    @id @default(uuid())
   content   String    @db.Text
   userId    String
-  articleId String?
+  articleId String?   // Can be a DB ID or an external RSS URL/ID
   postId    String?
-  parentId  String?   // For threaded comments
+  parentId  String?
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article   Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  // Removed @relation for articleId to allow commenting on external articles
   post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
   parent    Comment?  @relation("replies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Comment[] @relation("replies")
@@ -249,7 +247,7 @@ model Notification {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String   // SYSTEM, ARTICLE_VERIFIED, COMMENT_REPLY
+  type      String
   title     String
   message   String   @db.Text
   isRead    Boolean  @default(false)
@@ -265,7 +263,7 @@ model SupportTicket {
   category    String   @default("technical_issue")
   priority    String   @default("normal")
   articleUrl  String?
-  status      String   @default("OPEN") // OPEN, IN_PROGRESS, CLOSED
+  status      String   @default("OPEN")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -292,13 +290,13 @@ enum ApplicationStatus {
 }
 
 model BreakingNews {
-  id          String   @id @default(uuid())
-  title       String
-  content     String   @db.Text
-  sourceUrl   String?
-  imageUrl    String?
-  priority    Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  sourceUrl String?
+  imageUrl  String?
+  priority  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
