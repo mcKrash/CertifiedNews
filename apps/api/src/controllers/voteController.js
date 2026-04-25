@@ -4,6 +4,7 @@ const prisma = new PrismaClient();
 
 /**
  * Add or remove like/vote on article or post
+ * Supports both internal database items and external RSS items
  */
 const toggleVote = async (req, res) => {
   try {
@@ -17,7 +18,7 @@ const toggleVote = async (req, res) => {
       });
     }
 
-    // Convert to string to avoid Prisma validation errors (handles numeric IDs)
+    // Convert to string to avoid Prisma validation errors
     if (articleId) articleId = String(articleId);
     if (postId) postId = String(postId);
 
@@ -31,16 +32,16 @@ const toggleVote = async (req, res) => {
       },
     });
 
-    let vote;
     if (existingVote) {
       // Remove vote if it exists
       await prisma.vote.delete({
         where: { id: existingVote.id },
       });
-      vote = null;
     } else {
       // Create new vote
-      vote = await prisma.vote.create({
+      // Note: We removed the foreign key constraint for articleId in the schema 
+      // to allow liking external items that don't exist in our Article table.
+      await prisma.vote.create({
         data: {
           userId,
           articleId: articleId || null,
@@ -91,7 +92,6 @@ const getVoteCount = async (req, res) => {
       });
     }
 
-    // Convert to string to avoid Prisma validation errors
     if (articleId) articleId = String(articleId);
     if (postId) postId = String(postId);
 
