@@ -105,22 +105,39 @@ export default function HomePage() {
         const response = await fetch('/api/articles');
         const data = await response.json();
         
+        // Handle potential different response structures (array or {data: []})
+        const articlesData = Array.isArray(data) ? data : (data.data || []);
+        
         // Filter articles based on active category
-        let filtered = data;
+        let filtered = articlesData;
         if (activeCategory !== 'all') {
           const selectedCategory = categories.find(c => c.id === activeCategory);
           if (selectedCategory) {
-            filtered = data.filter((article: any) => article.categoryId === selectedCategory.categoryId);
+            filtered = articlesData.filter((article: any) => article.categoryId === selectedCategory.categoryId);
           }
         }
 
         if (feedPreferences.verifiedOnly) {
-          filtered = filtered.filter((article: any) => article.status === 'verified');
+          filtered = filtered.filter((article: any) => article.status === 'verified' || article.status === 'VERIFIED');
         }
         
         // Sort by published date (newest first)
         filtered.sort((a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
         
+        // Initialize likes and comments from real data
+        const initialLikes: Record<string, { liked: boolean; count: number }> = {};
+        const initialComments: Record<string, number> = {};
+        
+        filtered.forEach((article: any) => {
+          initialLikes[article.id] = { 
+            liked: article.userVoted || false, 
+            count: article.likeCount || 0 
+          };
+          initialComments[article.id] = article.commentCount || 0;
+        });
+        
+        setArticleLikes(initialLikes);
+        setCommentCounts(initialComments);
         setArticles(filtered);
       } catch (error) {
         console.error('Error fetching articles:', error);
@@ -277,6 +294,11 @@ export default function HomePage() {
   const handleArticleLike = async (articleId: string) => {
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login to like posts');
+        return;
+      }
+      
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
       
       const res = await fetch(`${API_URL}/votes`, {
@@ -296,16 +318,16 @@ export default function HomePage() {
         return;
       }
 
-      setArticleLikes(prev => {
-        const current = prev[articleId] || { liked: false, count: Math.floor(Math.random() * 200) };
-        return {
+      const result = await res.json();
+      if (result.success && result.data) {
+        setArticleLikes(prev => ({
           ...prev,
           [articleId]: {
-            liked: !current.liked,
-            count: current.liked ? current.count - 1 : current.count + 1,
+            liked: result.data.voted,
+            count: result.data.voteCount,
           },
-        };
-      });
+        }));
+      }
     } catch (error) {
       console.error('Error toggling like:', error);
     }
