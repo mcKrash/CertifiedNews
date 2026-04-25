@@ -1,7 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
 const { checkContentViolation, recordViolation, isUserBanned } = require('../utils/moderation');
-
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 const serializeComment = (comment) => ({
   id: comment.id,
