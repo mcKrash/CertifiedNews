@@ -14,6 +14,8 @@ interface CommentItem {
   username?: string;
   userAvatar: string | null;
   content: string;
+  imageUrl?: string | null;
+  linkUrl?: string | null;
   createdAt: string;
   likes: number;
   replies: CommentItem[];
