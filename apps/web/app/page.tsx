@@ -80,12 +80,18 @@ export default function LoginPage() {
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const size = 500;
+    // Dynamic size based on window width
+    const getGlobeSize = () => {
+      if (typeof window === 'undefined') return 500;
+      return window.innerWidth < 1024 ? Math.min(window.innerWidth - 60, 320) : 500;
+    };
+    
+    let size = getGlobeSize();
     canvas.width = size * dpr;
     canvas.height = size * dpr;
     ctx.scale(dpr, dpr);
 
-    const R = size / 2 - 30;
+    const R = size / 2 - (size < 400 ? 20 : 30);
     const cx = size / 2;
     const cy = size / 2;
 
@@ -208,8 +214,23 @@ export default function LoginPage() {
       ctx.restore();
       requestRef.current = requestAnimationFrame(animate);
     };
+
+    const handleResize = () => {
+      const newSize = getGlobeSize();
+      if (newSize !== size) {
+        size = newSize;
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        ctx.scale(dpr, dpr);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
     requestRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(requestRef.current!);
+    return () => {
+      cancelAnimationFrame(requestRef.current!);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [isPaused]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -232,7 +253,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden" style={{ background: 'linear-gradient(135deg, #f0fdfb 0%, #ccf2ef 100%)' }}>
+    <div className="min-h-screen flex flex-col lg:flex-row overflow-x-hidden" style={{ background: 'linear-gradient(135deg, #f0fdfb 0%, #ccf2ef 100%)' }}>
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap');
         @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -243,57 +264,57 @@ export default function LoginPage() {
         .font-inter { font-family: 'Inter', sans-serif; }
       `}</style>
 
-      {/* Left Panel - Globe */}
-      <div className="w-full lg:w-1/2 relative flex flex-col items-center justify-center p-8">
+      {/* Left Panel - Globe (Hidden on mobile or moved to top) */}
+      <div className="w-full lg:w-1/2 relative flex flex-col items-center justify-center p-6 lg:p-8 order-2 lg:order-1">
         <div className="animate-scale-in">
-          <canvas ref={canvasRef} style={{ width: 500, height: 500 }} className="max-w-full h-auto" />
+          <canvas ref={canvasRef} style={{ width: '100%', maxWidth: 500 }} className="h-auto" />
         </div>
-        <div className="mt-8 text-center animate-fade-in" style={{ animationDelay: '0.35s' }}>
-          <h1 className="text-[32px] font-elegant mb-3" style={{ color: '#1a2c3a', letterSpacing: '-0.02em' }}>World Certified News Alliance</h1>
-          <p className="text-[17px] font-inter italic" style={{ color: '#5a6a7a', fontWeight: 400 }}>Where We Make Sure It&apos;s Certified.</p>
+        <div className="mt-6 lg:mt-8 text-center animate-fade-in px-4" style={{ animationDelay: '0.35s' }}>
+          <h1 className="text-[24px] lg:text-[32px] font-elegant mb-2 lg:mb-3" style={{ color: '#1a2c3a', letterSpacing: '-0.02em' }}>World Certified News Alliance</h1>
+          <p className="text-[14px] lg:text-[17px] font-inter italic" style={{ color: '#5a6a7a', fontWeight: 400 }}>Where We Make Sure It&apos;s Certified.</p>
         </div>
-        <button onClick={() => setIsPaused(!isPaused)} className="absolute bottom-8 left-8 flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full bg-white/60 hover:bg-white transition-all shadow-sm" style={{ color: '#2c3e50' }}>
+        <button onClick={() => setIsPaused(!isPaused)} className="mt-6 lg:absolute lg:bottom-8 lg:left-8 flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full bg-white/60 hover:bg-white transition-all shadow-sm" style={{ color: '#2c3e50' }}>
           <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-gray-400' : 'bg-[#00b8a0]'}`} style={{ boxShadow: isPaused ? 'none' : '0 0 8px rgba(0,184,160,0.6)' }} />
           {isPaused ? 'Resume motion' : 'Pause motion'}
         </button>
       </div>
 
       {/* Right Panel - Login Card */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <div className="w-full max-w-[420px] bg-white/80 backdrop-blur-md p-10 rounded-[32px] shadow-2xl animate-fade-in border border-white/40">
-          <div className="flex flex-col items-center mb-10">
-            <div className="mb-6 transform hover:scale-105 transition-transform duration-300">
-              <Image src="/logo.png" alt="WCNA Logo" width={90} height={90} className="rounded-2xl shadow-lg" />
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 lg:p-8 order-1 lg:order-2">
+        <div className="w-full max-w-[420px] bg-white/80 backdrop-blur-md p-6 lg:p-10 rounded-[24px] lg:rounded-[32px] shadow-2xl animate-fade-in border border-white/40 my-8 lg:my-0">
+          <div className="flex flex-col items-center mb-8 lg:mb-10">
+            <div className="mb-4 lg:mb-6 transform hover:scale-105 transition-transform duration-300">
+              <Image src="/logo.png" alt="WCNA Logo" width={70} height={70} className="rounded-2xl shadow-lg lg:w-[90px] lg:h-[90px]" />
             </div>
-            <h2 className="text-[30px] font-inter font-bold mb-1" style={{ color: '#1a2c3a', letterSpacing: '-0.03em' }}>Welcome Back</h2>
-            <p className="text-[15px] font-inter" style={{ color: '#8a9aaa', fontWeight: 500 }}>Sign in to your account</p>
+            <h2 className="text-[24px] lg:text-[30px] font-inter font-bold mb-1" style={{ color: '#1a2c3a', letterSpacing: '-0.03em' }}>Welcome Back</h2>
+            <p className="text-[14px] lg:text-[15px] font-inter" style={{ color: '#8a9aaa', fontWeight: 500 }}>Sign in to your account</p>
           </div>
 
           {message && <div className="p-4 rounded-xl text-sm mb-6 font-inter" style={{ backgroundColor: '#E8F8F5', color: '#00B4A0' }}>{message}</div>}
           {error && <div className="p-4 rounded-xl text-sm mb-6 font-inter" style={{ backgroundColor: '#FFE5E5', color: '#E74C3C' }}>{error}</div>}
 
-          <form onSubmit={handleLogin} className="space-y-5 mb-8">
-            <input type="text" placeholder="Username or email" value={emailOrUsername} onChange={(e) => setEmailOrUsername(e.target.value)} className="w-full px-5 py-4 border-[1.5px] rounded-[16px] text-sm font-inter transition-all focus:outline-none focus:border-[#00b8a0] focus:ring-[4px] focus:ring-[#00b8a0]/10" style={{ borderColor: '#dde3ea' }} required />
+          <form onSubmit={handleLogin} className="space-y-4 lg:space-y-5 mb-6 lg:mb-8">
+            <input type="text" placeholder="Username or email" value={emailOrUsername} onChange={(e) => setEmailOrUsername(e.target.value)} className="w-full px-5 py-3.5 lg:py-4 border-[1.5px] rounded-[14px] lg:rounded-[16px] text-sm font-inter transition-all focus:outline-none focus:border-[#00b8a0] focus:ring-[4px] focus:ring-[#00b8a0]/10" style={{ borderColor: '#dde3ea' }} required />
             <div className="relative">
-              <input type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-5 py-4 border-[1.5px] rounded-[16px] text-sm font-inter transition-all focus:outline-none focus:border-[#00b8a0] focus:ring-[4px] focus:ring-[#00b8a0]/10" style={{ borderColor: '#dde3ea' }} required />
+              <input type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-5 py-3.5 lg:py-4 border-[1.5px] rounded-[14px] lg:rounded-[16px] text-sm font-inter transition-all focus:outline-none focus:border-[#00b8a0] focus:ring-[4px] focus:ring-[#00b8a0]/10" style={{ borderColor: '#dde3ea' }} required />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-[#8a9aaa] hover:text-[#2c3e50]">{showPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}</button>
             </div>
-            <button type="submit" disabled={loading} className="w-full py-4 rounded-[16px] font-inter font-bold text-white transition-all hover:translate-y-[-2px] active:translate-y-[0] disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #00c9af, #00b8a0)', boxShadow: '0 8px 24px rgba(0,184,160,0.3)' }}>{loading ? 'Signing in...' : 'Sign In'}</button>
+            <button type="submit" disabled={loading} className="w-full py-3.5 lg:py-4 rounded-[14px] lg:rounded-[16px] font-inter font-bold text-white transition-all hover:translate-y-[-2px] active:translate-y-[0] disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #00c9af, #00b8a0)', boxShadow: '0 8px 24px rgba(0,184,160,0.3)' }}>{loading ? 'Signing in...' : 'Sign In'}</button>
           </form>
 
-          <div className="relative mb-8">
+          <div className="relative mb-6 lg:mb-8">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t" style={{ borderColor: '#e8edf2' }}></div></div>
-            <div className="relative flex justify-center text-[13px]"><span className="px-4 bg-white/0 text-[#aab4be] font-inter font-medium">Or continue with</span></div>
+            <div className="relative flex justify-center text-[12px] lg:text-[13px]"><span className="px-4 bg-white/0 text-[#aab4be] font-inter font-medium">Or continue with</span></div>
           </div>
 
-          <div className="space-y-4">
-            <button type="button" onClick={handleGoogleLogin} className="w-full py-4 border-[1.5px] rounded-[16px] font-inter font-bold flex items-center justify-center gap-3 hover:bg-white transition-all hover:shadow-md" style={{ borderColor: '#e0e6ed', color: '#1a2c3a' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          <div className="space-y-3 lg:space-y-4">
+            <button type="button" onClick={handleGoogleLogin} className="w-full py-3.5 lg:py-4 border-[1.5px] rounded-[14px] lg:rounded-[16px] font-inter font-bold flex items-center justify-center gap-3 hover:bg-white transition-all hover:shadow-md" style={{ borderColor: '#e0e6ed', color: '#1a2c3a' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" className="lg:w-5 lg:h-5"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
               Sign in with Google
             </button>
           </div>
 
-          <p className="text-center text-[15px] font-inter mt-10" style={{ color: '#8a9aaa', fontWeight: 500 }}>
+          <p className="text-center text-[14px] lg:text-[15px] font-inter mt-8 lg:mt-10" style={{ color: '#8a9aaa', fontWeight: 500 }}>
             Don&apos;t have an account?{' '}
             <Link href="/auth/register" className="transition-colors hover:text-[#009985]" style={{ color: '#00b8a0', fontWeight: 'bold' }}>
               Create one
