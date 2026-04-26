@@ -39,6 +39,10 @@ export default function CommentSection({ articleId, postId, onCommentAdded, isEx
   const [violationMessage, setViolationMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showImageInput, setShowImageInput] = useState(false);
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
   const [userBanStatus, setUserBanStatus] = useState<any>(null);
   const [characterCount, setCharacterCount] = useState(0);
   const [replyCharacterCount, setReplyCharacterCount] = useState(0);
@@ -88,7 +92,7 @@ export default function CommentSection({ articleId, postId, onCommentAdded, isEx
     setViolationMessage('');
   };
 
-  const submitCommentToApi = async (content: string, parentId?: string) => {
+  const submitCommentToApi = async (content: string, parentId?: string, img?: string, link?: string) => {
     const token = getToken();
     if (!token) {
       throw new Error('Please sign in to comment.');
@@ -105,6 +109,8 @@ export default function CommentSection({ articleId, postId, onCommentAdded, isEx
         articleId,
         postId,
         parentId: parentId || null,
+        imageUrl: img || null,
+        linkUrl: link || null,
       }),
     });
 
@@ -146,9 +152,13 @@ export default function CommentSection({ articleId, postId, onCommentAdded, isEx
 
     try {
       setIsSubmitting(true);
-      const comment = await submitCommentToApi(newComment.trim());
+      const comment = await submitCommentToApi(newComment.trim(), undefined, imageUrl, linkUrl);
       setComments((prev) => [comment, ...prev]);
       setNewComment('');
+      setImageUrl('');
+      setLinkUrl('');
+      setShowImageInput(false);
+      setShowLinkInput(false);
       setCharacterCount(0);
       setViolationMessage('');
       onCommentAdded?.(comment);
@@ -251,6 +261,16 @@ export default function CommentSection({ articleId, postId, onCommentAdded, isEx
             </div>
           </div>
           <p className="text-sm leading-relaxed" style={{ color: '#2C3E50' }}>{comment.content}</p>
+          {comment.imageUrl && (
+            <div className="mt-3 rounded-lg overflow-hidden border">
+              <img src={comment.imageUrl} alt="Comment attachment" className="w-full h-auto max-h-64 object-cover" />
+            </div>
+          )}
+          {comment.linkUrl && (
+            <a href={comment.linkUrl} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-2 text-xs font-bold hover:underline" style={{ color: '#00B4A0' }}>
+              <LinkIcon size={14} /> {comment.linkUrl}
+            </a>
+          )}
         </div>
         <div className="flex items-center gap-4 mt-2 text-xs font-bold" style={{ color: '#95A5A6' }}>
           <span className="flex items-center gap-1"><HeartIcon size={16} /> {comment.likes}</span>
@@ -320,12 +340,20 @@ export default function CommentSection({ articleId, postId, onCommentAdded, isEx
             </div>
             <div className="flex-1">
               <textarea value={newComment} onChange={handleCommentChange} placeholder="Share your mind..." className="w-full px-4 py-3 bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 resize-none" style={{ borderColor: '#E0E6ED', '--tw-ring-color': '#00B4A0' } as any} rows={3} disabled={isSubmitting} maxLength={2000} />
+              
+              {showImageInput && (
+                <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Paste image URL here..." className="w-full mt-2 px-3 py-1.5 border rounded-md text-xs focus:outline-none focus:ring-1" style={{ borderColor: '#00B4A0' } as any} />
+              )}
+              {showLinkInput && (
+                <input type="text" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="Paste link URL here..." className="w-full mt-2 px-3 py-1.5 border rounded-md text-xs focus:outline-none focus:ring-1" style={{ borderColor: '#00B4A0' } as any} />
+              )}
+
               <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center gap-2">
-                  <button type="button" className="hover:text-[#00B4A0] transition-colors" title="Link"><LinkIcon size={20} /></button>
-                  <button type="button" className="hover:text-[#00B4A0] transition-colors" title="Image"><ImageIcon size={20} /></button>
-                  <button type="button" className="hover:text-[#00B4A0] transition-colors" title="Emoji"><EmojiIcon size={20} /></button>
-                  <button type="button" className="hover:text-[#00B4A0] transition-colors" title="More"><MoreIcon size={20} /></button>
+                  <button type="button" onClick={() => { setShowLinkInput(!showLinkInput); setShowImageInput(false); }} className="hover:text-[#00B4A0] transition-colors" style={{ color: showLinkInput ? '#00B4A0' : '#95A5A6' }} title="Link"><LinkIcon size={20} /></button>
+                  <button type="button" onClick={() => { setShowImageInput(!showImageInput); setShowLinkInput(false); }} className="hover:text-[#00B4A0] transition-colors" style={{ color: showImageInput ? '#00B4A0' : '#95A5A6' }} title="Image"><ImageIcon size={20} /></button>
+                  <button type="button" onClick={() => { setNewComment(prev => prev + ' 😊'); }} className="hover:text-[#00B4A0] transition-colors" style={{ color: '#95A5A6' }} title="Emoji"><EmojiIcon size={20} /></button>
+                  <button type="button" className="hover:text-[#00B4A0] transition-colors" style={{ color: '#95A5A6' }} title="More"><MoreIcon size={20} /></button>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-xs" style={{ color: '#95A5A6' }}>{characterCount} / 2000</span>

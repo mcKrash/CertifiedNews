@@ -8,6 +8,8 @@ const serializeComment = (comment) => ({
   userName: comment.user.name,
   username: comment.user.username,
   userAvatar: comment.user.avatarUrl || comment.user.profilePhotoUrl || null,
+  imageUrl: comment.imageUrl || null,
+  linkUrl: comment.linkUrl || null,
   createdAt: comment.createdAt,
   updatedAt: comment.updatedAt,
   likes: comment.likeCount || 0,
@@ -16,7 +18,7 @@ const serializeComment = (comment) => ({
 
 const createComment = async (req, res) => {
   try {
-    let { content, articleId, postId, parentId } = req.body;
+    let { content, articleId, postId, parentId, imageUrl, linkUrl } = req.body;
     const userId = req.user.id;
 
     if (!content || !content.trim()) {
@@ -56,6 +58,8 @@ const createComment = async (req, res) => {
         articleId: articleId || null,
         postId: postId || null,
         parentId: parentId || null,
+        imageUrl: imageUrl || null,
+        linkUrl: linkUrl || null,
       },
       include: {
         user: {
@@ -100,12 +104,11 @@ const getComments = async (req, res) => {
     const where = {
       articleId: articleId || null,
       postId: postId || null,
-      parentId: null,
     };
 
     const [comments, total] = await Promise.all([
       prisma.comment.findMany({
-        where,
+        where: { ...where, parentId: null }, // Only top-level comments for pagination
         include: {
           user: {
             select: {
@@ -149,7 +152,7 @@ const getComments = async (req, res) => {
         skip,
         take: pageSize,
       }),
-      prisma.comment.count({ where }),
+      prisma.comment.count({ where }), // Count ALL comments (including replies) for the total
     ]);
 
     return res.status(200).json({

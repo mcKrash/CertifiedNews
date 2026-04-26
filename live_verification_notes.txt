@@ -1,0 +1,9 @@
+Live check on 2026-04-23 23:14 UTC:
+- https://wcna.live shows the login page with username/email, password, Sign In, Sign in with Google, and Create Account.
+- https://wcna.live/auth/register is live after clicking Create Account.
+- The registration page currently shows the first account-information step with Full Name, Username, Email, Password, Confirm Password, and Create Account.
+- The OTP entry step is not visible on the live site yet, which suggests the new deployment is either still propagating or the production site has not picked up the latest register-page behavior yet.
+
+Second live check on 2026-04-23 23:15 UTC:
+- The registration page now shows the updated first step with the label "Step 1 of 3" and the primary button text "Continue," which confirms the new OTP-first registration build has started reaching production.
+- The live login page still shows the "Sign in with Google" button, so the Google entry point remains available on the deployed login screen.

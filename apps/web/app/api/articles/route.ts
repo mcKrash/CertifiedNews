@@ -268,18 +268,20 @@ const mockData = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://certifiednews.onrender.com/api';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // Enrich mock articles with real engagement counts from the database
+    // We fetch in parallel to avoid slowness
     const enrichedArticles = await Promise.all(
       mockData.articles.map(async (article) => {
         try {
-          // Fetch vote count
-          const voteRes = await fetch(`${API_URL}/votes/count?articleId=${article.id}`);
-          const voteData = await voteRes.json();
+          // Fetch counts in parallel for this article
+          const [voteRes, commentRes] = await Promise.all([
+            fetch(`${API_URL}/votes/count?articleId=${article.id}`, { next: { revalidate: 0 } }),
+            fetch(`${API_URL}/comments?articleId=${article.id}&limit=1`, { next: { revalidate: 0 } })
+          ]);
           
-          // Fetch comment count
-          const commentRes = await fetch(`${API_URL}/comments?articleId=${article.id}&limit=1`);
+          const voteData = await voteRes.json();
           const commentData = await commentRes.json();
           
           return {

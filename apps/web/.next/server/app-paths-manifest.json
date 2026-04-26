@@ -9,10 +9,10 @@
   "/auth/register/journalist/page": "app/auth/register/journalist/page.js",
   "/auth/register/page": "app/auth/register/page.js",
   "/channel/[id]/page": "app/channel/[id]/page.js",
-  "/home/page": "app/home/page.js",
   "/page": "app/page.js",
+  "/home/page": "app/home/page.js",
   "/preferences/page": "app/preferences/page.js",
-  "/profile/page": "app/profile/page.js",
   "/profile/[username]/page": "app/profile/[username]/page.js",
+  "/profile/page": "app/profile/page.js",
   "/support/page": "app/support/page.js"
 }
